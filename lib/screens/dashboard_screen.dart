@@ -1,39 +1,49 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../providers/warehouse_provider.dart';
 import 'import_screen.dart';
 import 'export_screen.dart';
 import 'bulk_scan_screen.dart';
 import 'search_screen.dart';
 
-class DashboardScreen extends StatelessWidget {
+class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final warehouse = ref.watch(warehouseProvider);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('WarehousePro'),
-        centerTitle: false,
         actions: [
-          // Sync status badge
-          Container(
-            margin: const EdgeInsets.only(right: 8),
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: Colors.orange.shade100,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.sync_problem, size: 16, color: Color(0xFFE65100)),
-                const SizedBox(width: 4),
-                Text('3', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFE65100), fontSize: 13)),
-                const Text(' chờ sync', style: TextStyle(fontSize: 12, color: Color(0xFFE65100))),
-              ],
+          GestureDetector(
+            onTap: () {
+              ref.read(warehouseProvider.notifier).syncNow();
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Đã đồng bộ tất cả phiếu'), behavior: SnackBarBehavior.floating));
+            },
+            child: Container(
+              margin: const EdgeInsets.only(right: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: warehouse.pendingSync > 0 ? Colors.orange.shade50 : Colors.green.shade50,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.sync_problem, size: 16, color: warehouse.pendingSync > 0 ? const Color(0xFFE65100) : Colors.green),
+                  const SizedBox(width: 4),
+                  Text('${warehouse.pendingSync}', style: TextStyle(fontWeight: FontWeight.bold, color: warehouse.pendingSync > 0 ? const Color(0xFFE65100) : Colors.green, fontSize: 13)),
+                  Text(' chờ sync', style: TextStyle(fontSize: 12, color: warehouse.pendingSync > 0 ? const Color(0xFFE65100) : Colors.green)),
+                ],
+              ),
             ),
           ),
+          IconButton(icon: const Icon(Icons.sync), onPressed: () {
+            ref.read(warehouseProvider.notifier).syncNow();
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Đã đồng bộ tất cả phiếu'), behavior: SnackBarBehavior.floating));
+          }),
           IconButton(icon: const Icon(Icons.person_outline), onPressed: () {}),
         ],
       ),
@@ -42,112 +52,118 @@ class DashboardScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Greeting
-            Card(
-              child: ListTile(
-                leading: CircleAvatar(backgroundColor: cs.primaryContainer, child: Icon(Icons.person, color: cs.onPrimaryContainer)),
-                title: const Text('Nguyễn Văn A', style: TextStyle(fontWeight: FontWeight.w600)),
-                subtitle: const Text('Thủ kho'),
-                trailing: Icon(Icons.wifi_off, color: Colors.grey.shade500),
-              ),
-            ),
-            const SizedBox(height: 20),
-
             // Stats row
             Row(
               children: [
-                Expanded(child: _StatCard(label: 'Tổng SP', value: '486', icon: Icons.inventory_2, color: cs.primary)),
+                Expanded(child: _StatCard(icon: Icons.inventory_2, label: 'Tổng SP', value: '${warehouse.totalProducts}', color: Colors.blue)),
                 const SizedBox(width: 10),
-                Expanded(child: _StatCard(label: 'Chờ sync', value: '3', icon: Icons.sync, color: Colors.orange)),
+                Expanded(child: _StatCard(icon: Icons.sync, label: 'Chờ sync', value: '${warehouse.pendingSync}', color: Colors.orange)),
               ],
             ),
             const SizedBox(height: 10),
             Row(
               children: [
-                Expanded(child: _StatCard(label: 'Nhập hôm nay', value: '5', icon: Icons.arrow_downward, color: Colors.green)),
+                Expanded(child: _StatCard(icon: Icons.arrow_downward, label: 'Nhập hôm nay', value: '${warehouse.todayImports}', color: Colors.green)),
                 const SizedBox(width: 10),
-                Expanded(child: _StatCard(label: 'Xuất hôm nay', value: '12', icon: Icons.arrow_upward, color: Colors.red.shade400)),
+                Expanded(child: _StatCard(icon: Icons.arrow_upward, label: 'Xuất hôm nay', value: '${warehouse.todayExports}', color: Colors.red)),
               ],
             ),
             const SizedBox(height: 24),
 
-            // Main actions - matching requirement spec
-            Text('Tác vụ', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+            Text('Tác vụ nhanh', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
             const SizedBox(height: 12),
 
-            _ActionButton(
-              icon: Icons.import_export,
-              label: 'Nhập kho',
-              subtitle: 'Tạo phiếu nhập → Quét mã + nhập SL → Lưu',
-              color: Colors.green,
-              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ImportScreen())),
+            // Action grid
+            Row(
+              children: [
+                Expanded(child: _ActionButton(icon: Icons.add_box, label: 'Nhập kho', color: Colors.blue, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ImportScreen())))),
+                const SizedBox(width: 10),
+                Expanded(child: _ActionButton(icon: Icons.outbox, label: 'Xuất kho', color: Colors.orange, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ExportScreen())))),
+              ],
             ),
-            _ActionButton(
-              icon: Icons.output,
-              label: 'Xuất kho',
-              subtitle: 'Tạo phiếu xuất / Chọn lệnh xuất → Quét + confirm',
-              color: Colors.orange,
-              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ExportScreen())),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(child: _ActionButton(icon: Icons.qr_code_scanner, label: 'Quét hàng loạt', color: Colors.teal, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const BulkScanScreen())))),
+                const SizedBox(width: 10),
+                Expanded(child: _ActionButton(icon: Icons.search, label: 'Tra cứu', color: Colors.purple, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SearchScreen())))),
+              ],
             ),
-            _ActionButton(
-              icon: Icons.qr_code_scanner,
-              label: 'Quét hàng loạt (kiểm kê)',
-              subtitle: 'Chọn khu vực → Continuous scan → So sánh tồn',
-              color: cs.primary,
-              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const BulkScanScreen())),
-            ),
-            _ActionButton(
-              icon: Icons.search,
-              label: 'Tra cứu sản phẩm',
-              subtitle: 'Tìm bằng Barcode hoặc tên sản phẩm',
-              color: Colors.purple,
-              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SearchScreen())),
-            ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 24),
 
-            // Quick sync button
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Đã đồng bộ 3 phiếu'), behavior: SnackBarBehavior.floating),
-                  );
-                },
-                icon: const Icon(Icons.sync),
-                label: const Text('Đồng bộ ngay'),
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            // Recent activity
+            Row(
+              children: [
+                Text('Hoạt động gần đây', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+                const Spacer(),
+                TextButton(onPressed: () {}, child: const Text('Xem tất cả')),
+              ],
+            ),
+            const SizedBox(height: 8),
+
+            if (warehouse.recentImports.isEmpty && warehouse.recentExports.isEmpty)
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Center(
+                    child: Text('Chưa có hoạt động nào hôm nay', style: TextStyle(color: Colors.grey.shade500)),
+                  ),
                 ),
-              ),
-            ),
-            const SizedBox(height: 80),
+              )
+            else
+              ...warehouse.recentImports.take(3).map((e) => ListTile(
+                dense: true,
+                leading: CircleAvatar(radius: 16, backgroundColor: Colors.green.shade50, child: const Icon(Icons.arrow_downward, color: Colors.green, size: 18)),
+                title: Text('Nhập kho: ${e['supplier']} — ${e['items']} SP', style: const TextStyle(fontSize: 13)),
+                trailing: Text(_formatTime(e['time']), style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
+              )),
+            ...warehouse.recentExports.take(3).map((e) => ListTile(
+              dense: true,
+              leading: CircleAvatar(radius: 16, backgroundColor: Colors.red.shade50, child: const Icon(Icons.arrow_upward, color: Colors.red, size: 18)),
+              title: Text('Xuất kho: ${e['customer']} — ${e['items']} SP', style: const TextStyle(fontSize: 13)),
+              trailing: Text(_formatTime(e['time']), style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
+            )),
+
+            const SizedBox(height: 32),
           ],
         ),
       ),
     );
   }
+
+  String _formatTime(dynamic t) {
+    if (t is DateTime) return '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+    return '';
+  }
 }
 
 class _StatCard extends StatelessWidget {
-  final String label, value;
   final IconData icon;
+  final String label, value;
   final Color color;
-  const _StatCard({required this.label, required this.value, required this.icon, required this.color});
+
+  const _StatCard({required this.icon, required this.label, required this.value, required this.color});
 
   @override
   Widget build(BuildContext context) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Row(
           children: [
-            Icon(icon, color: color, size: 26),
-            const SizedBox(height: 8),
-            Text(value, style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: color)),
-            Text(label, style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
+            Container(
+              width: 44, height: 44,
+              decoration: BoxDecoration(color: color.withAlpha(25), borderRadius: BorderRadius.circular(12)),
+              child: Icon(icon, color: color, size: 22),
+            ),
+            const SizedBox(width: 12),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                Text(value, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22, color: color)),
+              ],
+            ),
           ],
         ),
       ),
@@ -157,22 +173,32 @@ class _StatCard extends StatelessWidget {
 
 class _ActionButton extends StatelessWidget {
   final IconData icon;
-  final String label, subtitle;
+  final String label;
   final Color color;
   final VoidCallback onTap;
 
-  const _ActionButton({required this.icon, required this.label, required this.subtitle, required this.color, required this.onTap});
+  const _ActionButton({required this.icon, required this.label, required this.color, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
     return Card(
-      child: ListTile(
+      child: InkWell(
         onTap: onTap,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-        leading: CircleAvatar(radius: 26, backgroundColor: color.withAlpha(25), child: Icon(icon, color: color)),
-        title: Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
-        subtitle: Text(subtitle, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
-        trailing: const Icon(Icons.chevron_right),
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 20),
+          child: Column(
+            children: [
+              Container(
+                width: 52, height: 52,
+                decoration: BoxDecoration(color: color.withAlpha(25), borderRadius: BorderRadius.circular(14)),
+                child: Icon(icon, color: color, size: 28),
+              ),
+              const SizedBox(height: 10),
+              Text(label, style: TextStyle(fontWeight: FontWeight.w600, color: color), textAlign: TextAlign.center),
+            ],
+          ),
+        ),
       ),
     );
   }

@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'product_detail_screen.dart';
 
@@ -11,6 +12,36 @@ class SearchScreen extends StatefulWidget {
 class _SearchScreenState extends State<SearchScreen> {
   final _searchController = TextEditingController();
   bool _showBarcodeSearch = false;
+
+  static const _allProducts = [
+    ('Coca Cola 355ml', '8934567890123', 84, 'A1-01'),
+    ('Pepsi 355ml', '8934567890456', 62, 'A1-02'),
+    ('Sting đỏ 330ml', '8934567890789', 5, 'B1-03'),
+    ('Aquafina 500ml', '8934567890111', 96, 'C2-01'),
+    ('Number 1 355ml', '8934567890222', 41, 'A2-01'),
+    ('Bia Tiger 330ml', '8934567890333', 28, 'B2-01'),
+    ('Red Bull 250ml', '8934567890444', 55, 'C1-02'),
+    ('Trà xanh C2 500ml', '8934567890555', 72, 'A1-03'),
+    ('Monster 355ml', '8934567890666', 13, 'B1-01'),
+    ('Sữa đậu nành Fami', '8934567890777', 33, 'C2-02'),
+  ];
+
+  List<(String, String, int, String)> get _filteredProducts {
+    final query = _searchController.text.trim().toLowerCase();
+    if (query.isEmpty) return _allProducts;
+    return _allProducts.where((p) {
+      if (_showBarcodeSearch) {
+        return p.$2.toLowerCase().contains(query);
+      }
+      return p.$1.toLowerCase().contains(query) || p.$2.contains(query);
+    }).toList();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController.addListener(() => setState(() {}));
+  }
 
   @override
   void dispose() {
@@ -42,7 +73,10 @@ class _SearchScreenState extends State<SearchScreen> {
           FilledButton(
             onPressed: () {
               Navigator.pop(ctx);
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const ProductDetailScreen(productName: 'Coca Cola 355ml', barcode: '8934567890123')));
+              final rng = Random();
+              final product = _allProducts[rng.nextInt(_allProducts.length)];
+              _searchController.text = product.$2;
+              setState(() => _showBarcodeSearch = true);
             },
             child: const Text('Giả lập quét'),
           ),
@@ -53,11 +87,12 @@ class _SearchScreenState extends State<SearchScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final results = _filteredProducts;
+
     return Scaffold(
       appBar: AppBar(title: const Text('Tra cứu sản phẩm')),
       body: Column(
         children: [
-          // Search bar
           Padding(
             padding: const EdgeInsets.all(16),
             child: Row(
@@ -71,6 +106,9 @@ class _SearchScreenState extends State<SearchScreen> {
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                       filled: true,
                       fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                      suffixIcon: _searchController.text.isNotEmpty
+                          ? IconButton(icon: const Icon(Icons.clear), onPressed: () { _searchController.clear(); setState(() {}); })
+                          : null,
                     ),
                   ),
                 ),
@@ -86,7 +124,6 @@ class _SearchScreenState extends State<SearchScreen> {
             ),
           ),
 
-          // Toggle text / barcode search
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(
@@ -102,53 +139,35 @@ class _SearchScreenState extends State<SearchScreen> {
                   selected: _showBarcodeSearch,
                   onSelected: (_) => setState(() => _showBarcodeSearch = true),
                 ),
+                const Spacer(),
+                Text('${results.length} kết quả', style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
               ],
             ),
           ),
           const SizedBox(height: 8),
 
-          // Results
           Expanded(
-            child: ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              children: [
-                _ProductResult(
-                  name: 'Coca Cola 355ml',
-                  barcode: '8934567890123',
-                  stock: 84,
-                  location: 'A1-01',
-                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ProductDetailScreen(productName: 'Coca Cola 355ml', barcode: '8934567890123'))),
-                ),
-                _ProductResult(
-                  name: 'Pepsi 355ml',
-                  barcode: '8934567890456',
-                  stock: 62,
-                  location: 'A1-02',
-                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ProductDetailScreen(productName: 'Pepsi 355ml', barcode: '8934567890456'))),
-                ),
-                _ProductResult(
-                  name: 'Sting đỏ 330ml',
-                  barcode: '8934567890789',
-                  stock: 5,
-                  location: 'B1-03',
-                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ProductDetailScreen(productName: 'Sting đỏ 330ml', barcode: '8934567890789'))),
-                ),
-                _ProductResult(
-                  name: 'Aquafina 500ml',
-                  barcode: '8934567890111',
-                  stock: 96,
-                  location: 'C2-01',
-                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ProductDetailScreen(productName: 'Aquafina 500ml', barcode: '8934567890111'))),
-                ),
-                _ProductResult(
-                  name: 'Number 1 355ml',
-                  barcode: '8934567890222',
-                  stock: 41,
-                  location: 'A2-01',
-                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ProductDetailScreen(productName: 'Number 1 355ml', barcode: '8934567890222'))),
-                ),
-              ],
-            ),
+            child: results.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.search_off, size: 48, color: Colors.grey.shade400),
+                        const SizedBox(height: 8),
+                        Text('Không tìm thấy sản phẩm', style: TextStyle(color: Colors.grey.shade500)),
+                      ],
+                    ),
+                  )
+                : ListView(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    children: results.map((p) => _ProductResult(
+                      name: p.$1,
+                      barcode: p.$2,
+                      stock: p.$3,
+                      location: p.$4,
+                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ProductDetailScreen(productName: p.$1, barcode: p.$2))),
+                    )).toList(),
+                  ),
           ),
         ],
       ),

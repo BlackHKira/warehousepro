@@ -1,16 +1,32 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../providers/warehouse_provider.dart';
 
-class ImportScreen extends StatefulWidget {
+class ImportScreen extends ConsumerStatefulWidget {
   const ImportScreen({super.key});
 
   @override
-  State<ImportScreen> createState() => _ImportScreenState();
+  ConsumerState<ImportScreen> createState() => _ImportScreenState();
 }
 
-class _ImportScreenState extends State<ImportScreen> {
+class _ImportScreenState extends ConsumerState<ImportScreen> {
   final _items = <_ImportItem>[];
   final _supplierController = TextEditingController();
   final _noteController = TextEditingController();
+
+  static const _sampleProducts = [
+    ('Coca Cola 355ml', '8934567890123'),
+    ('Pepsi 355ml', '8934567890456'),
+    ('Sting đỏ 330ml', '8934567890789'),
+    ('Aquafina 500ml', '8934567890111'),
+    ('Number 1 355ml', '8934567890222'),
+    ('Bia Tiger 330ml', '8934567890333'),
+    ('Red Bull 250ml', '8934567890444'),
+    ('Trà xanh C2 500ml', '8934567890555'),
+    ('Monster 355ml', '8934567890666'),
+    ('Sữa đậu nành Fami', '8934567890777'),
+  ];
 
   @override
   void dispose() {
@@ -19,8 +35,8 @@ class _ImportScreenState extends State<ImportScreen> {
     super.dispose();
   }
 
-  void _addItem() {
-    setState(() => _items.add(_ImportItem(name: 'Coca Cola 355ml', barcode: '8934567890123', qty: 50)));
+  void _addItem(String name, String barcode, int qty) {
+    setState(() => _items.add(_ImportItem(name: name, barcode: barcode, qty: qty)));
   }
 
   void _showScanDialog() {
@@ -30,10 +46,7 @@ class _ImportScreenState extends State<ImportScreen> {
         title: const Text('Quét mã vạch'),
         content: Container(
           height: 200,
-          decoration: BoxDecoration(
-            color: Colors.black,
-            borderRadius: BorderRadius.circular(12),
-          ),
+          decoration: BoxDecoration(color: Colors.black, borderRadius: BorderRadius.circular(12)),
           child: const Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -47,15 +60,65 @@ class _ImportScreenState extends State<ImportScreen> {
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Huỷ')),
-          FilledButton(onPressed: () { Navigator.pop(ctx); _addItem(); }, child: const Text('Giả lập quét')),
+          FilledButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              final rng = Random();
+              final product = _sampleProducts[rng.nextInt(_sampleProducts.length)];
+              final qty = 1 + rng.nextInt(10);
+              _addItem(product.$1, product.$2, qty);
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Đã quét: ${product.$1} — $qty thùng'), behavior: SnackBarBehavior.floating, duration: const Duration(seconds: 1)));
+            },
+            child: const Text('Giả lập quét'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showManualDialog() {
+    final nameCtrl = TextEditingController();
+    final barcodeCtrl = TextEditingController();
+    final qtyCtrl = TextEditingController(text: '1');
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Thêm sản phẩm thủ công'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: 'Tên sản phẩm', border: OutlineInputBorder()), autofocus: true),
+              const SizedBox(height: 12),
+              TextField(controller: barcodeCtrl, decoration: const InputDecoration(labelText: 'Mã vạch', border: OutlineInputBorder())),
+              const SizedBox(height: 12),
+              TextField(controller: qtyCtrl, decoration: const InputDecoration(labelText: 'Số lượng', border: OutlineInputBorder()), keyboardType: TextInputType.number),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Huỷ')),
+          FilledButton(
+            onPressed: () {
+              final qty = int.tryParse(qtyCtrl.text) ?? 1;
+              if (nameCtrl.text.trim().isEmpty) return;
+              _addItem(nameCtrl.text.trim(), barcodeCtrl.text.trim().isEmpty ? 'N/A' : barcodeCtrl.text.trim(), qty);
+              Navigator.pop(ctx);
+            },
+            child: const Text('Thêm'),
+          ),
         ],
       ),
     );
   }
 
   void _save() {
+    if (_items.isEmpty) return;
+    final totalQty = _items.fold(0, (sum, item) => sum + item.qty);
+    ref.read(warehouseProvider.notifier).addImport(totalQty, _supplierController.text.trim().isEmpty ? 'NCC không tên' : _supplierController.text.trim());
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Đã lưu phiếu nhập kho'), behavior: SnackBarBehavior.floating),
+      SnackBar(content: Text('Đã lưu phiếu nhập — $totalQty sản phẩm'), behavior: SnackBarBehavior.floating, backgroundColor: Colors.green.shade700),
     );
     Navigator.pop(context);
   }
@@ -69,7 +132,6 @@ class _ImportScreenState extends State<ImportScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          // Voucher header
           Card(
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -98,22 +160,29 @@ class _ImportScreenState extends State<ImportScreen> {
           ),
           const SizedBox(height: 16),
 
-          // Scan button
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: _showScanDialog,
-              icon: const Icon(Icons.qr_code_scanner),
-              label: const Text('Quét mã sản phẩm'),
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _showScanDialog,
+                  icon: const Icon(Icons.qr_code_scanner),
+                  label: const Text('Quét mã'),
+                  style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                ),
               ),
-            ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: FilledButton.tonalIcon(
+                  onPressed: _showManualDialog,
+                  icon: const Icon(Icons.edit),
+                  label: const Text('Nhập tay'),
+                  style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 8),
 
-          // Items list
           if (_items.isEmpty)
             Card(
               child: Padding(
@@ -123,36 +192,37 @@ class _ImportScreenState extends State<ImportScreen> {
                     Icon(Icons.inventory_2_outlined, size: 48, color: Colors.grey.shade400),
                     const SizedBox(height: 8),
                     Text('Chưa có sản phẩm nào', style: TextStyle(color: Colors.grey.shade500)),
-                    Text('Bấm "Quét mã sản phẩm" để thêm', style: TextStyle(color: Colors.grey.shade500, fontSize: 13)),
+                    Text('Bấm "Quét mã" hoặc "Nhập tay" để thêm', style: TextStyle(color: Colors.grey.shade500, fontSize: 13)),
                   ],
                 ),
               ),
             ),
 
           ..._items.asMap().entries.map((entry) {
+            final i = entry.key;
             final item = entry.value;
-            return Card(
-              child: ListTile(
-                leading: Container(
-                  width: 44, height: 44,
-                  decoration: BoxDecoration(color: cs.primaryContainer, borderRadius: BorderRadius.circular(10)),
-                  child: Icon(Icons.qr_code, color: cs.onPrimaryContainer),
-                ),
-                title: Text(item.name, style: const TextStyle(fontWeight: FontWeight.w500)),
-                subtitle: Text(item.barcode, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.remove_circle_outline, size: 20),
-                      onPressed: () => setState(() { if (item.qty > 1) item.qty--; }),
-                    ),
-                    Text('${item.qty}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                    IconButton(
-                      icon: const Icon(Icons.add_circle_outline, size: 20),
-                      onPressed: () => setState(() => item.qty++),
-                    ),
-                  ],
+            return Dismissible(
+              key: Key('$i-${item.barcode}'),
+              direction: DismissDirection.endToStart,
+              background: Container(alignment: Alignment.centerRight, padding: const EdgeInsets.only(right: 16), color: Colors.red, child: const Icon(Icons.delete, color: Colors.white)),
+              onDismissed: (_) => setState(() => _items.removeAt(i)),
+              child: Card(
+                child: ListTile(
+                  leading: Container(
+                    width: 44, height: 44,
+                    decoration: BoxDecoration(color: cs.primaryContainer, borderRadius: BorderRadius.circular(10)),
+                    child: Icon(Icons.qr_code, color: cs.onPrimaryContainer),
+                  ),
+                  title: Text(item.name, style: const TextStyle(fontWeight: FontWeight.w500)),
+                  subtitle: Text(item.barcode, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(icon: const Icon(Icons.remove_circle_outline, size: 20), onPressed: () => setState(() { if (item.qty > 1) item.qty--; })),
+                      Text('${item.qty}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      IconButton(icon: const Icon(Icons.add_circle_outline, size: 20), onPressed: () => setState(() => item.qty++)),
+                    ],
+                  ),
                 ),
               ),
             );
@@ -160,13 +230,12 @@ class _ImportScreenState extends State<ImportScreen> {
 
           const SizedBox(height: 20),
 
-          // Save button
           SizedBox(
             width: double.infinity, height: 50,
             child: FilledButton.icon(
               onPressed: _items.isEmpty ? null : _save,
               icon: const Icon(Icons.save),
-              label: Text('Lưu phiếu nhập (${_items.length} sản phẩm)'),
+              label: Text('Lưu phiếu nhập (${_items.length} sản phẩm, ${_items.fold(0, (s, e) => s + e.qty)} lượng)'),
               style: FilledButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
             ),
           ),
