@@ -38,7 +38,10 @@ class ZoneManagementScreen extends ConsumerWidget {
           children: [
             Icon(Icons.map_outlined, size: 80, color: Colors.grey.shade300),
             const SizedBox(height: 16),
-            Text('Chưa có khu vực nào', style: TextStyle(color: Colors.grey.shade500, fontSize: 18)),
+            Text(
+              'Chưa có khu vực nào',
+              style: TextStyle(color: Colors.grey.shade500, fontSize: 18),
+            ),
             const SizedBox(height: 8),
             FilledButton.tonal(
               onPressed: () => _showZoneDialog(context, ref, null),
@@ -53,32 +56,60 @@ class ZoneManagementScreen extends ConsumerWidget {
       padding: const EdgeInsets.all(24),
       child: DataTable(
         columns: const [
-          DataColumn(label: Text('Mã', style: TextStyle(fontWeight: FontWeight.bold))),
-          DataColumn(label: Text('Tên', style: TextStyle(fontWeight: FontWeight.bold))),
-          DataColumn(label: Text('Mô tả', style: TextStyle(fontWeight: FontWeight.bold))),
-          DataColumn(label: Text('Thứ tự', style: TextStyle(fontWeight: FontWeight.bold))),
-          DataColumn(label: Text('Thao tác', style: TextStyle(fontWeight: FontWeight.bold))),
+          DataColumn(
+            label: Text('Mã', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+          DataColumn(
+            label: Text('Tên', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+          DataColumn(
+            label: Text('Mô tả', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+          DataColumn(
+            label: Text(
+              'Thứ tự',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+          DataColumn(
+            label: Text(
+              'Thao tác',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
         ],
-        rows: zones.map((zone) => DataRow(cells: [
-          DataCell(Text(zone.code)),
-          DataCell(Text(zone.label)),
-          DataCell(Text(zone.description)),
-          DataCell(Text('${zone.sortOrder}')),
-          DataCell(Row(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.edit, size: 18),
-                tooltip: 'Sửa',
-                onPressed: () => _showZoneDialog(context, ref, zone),
+        rows: zones
+            .map(
+              (zone) => DataRow(
+                cells: [
+                  DataCell(Text(zone.code)),
+                  DataCell(Text(zone.label)),
+                  DataCell(Text(zone.description)),
+                  DataCell(Text('${zone.sortOrder}')),
+                  DataCell(
+                    Row(
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.edit, size: 18),
+                          tooltip: 'Sửa',
+                          onPressed: () => _showZoneDialog(context, ref, zone),
+                        ),
+                        IconButton(
+                          icon: const Icon(
+                            Icons.delete,
+                            size: 18,
+                            color: Colors.red,
+                          ),
+                          tooltip: 'Xoá',
+                          onPressed: () => _confirmDelete(context, ref, zone),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-              IconButton(
-                icon: const Icon(Icons.delete, size: 18, color: Colors.red),
-                tooltip: 'Xoá',
-                onPressed: () => _confirmDelete(context, ref, zone),
-              ),
-            ],
-          )),
-        ])).toList(),
+            )
+            .toList(),
       ),
     );
   }
@@ -87,7 +118,9 @@ class ZoneManagementScreen extends ConsumerWidget {
     final codeCtrl = TextEditingController(text: existing?.code ?? '');
     final labelCtrl = TextEditingController(text: existing?.label ?? '');
     final descCtrl = TextEditingController(text: existing?.description ?? '');
-    final sortCtrl = TextEditingController(text: (existing?.sortOrder ?? 0).toString());
+    final sortCtrl = TextEditingController(
+      text: (existing?.sortOrder ?? 0).toString(),
+    );
     final isEdit = existing != null;
 
     showDialog(
@@ -98,18 +131,47 @@ class ZoneManagementScreen extends ConsumerWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(controller: codeCtrl, decoration: const InputDecoration(labelText: 'Mã', border: OutlineInputBorder()), enabled: !isEdit),
+              TextField(
+                controller: codeCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Mã',
+                  border: OutlineInputBorder(),
+                ),
+                enabled: !isEdit,
+              ),
               const SizedBox(height: 12),
-              TextField(controller: labelCtrl, decoration: const InputDecoration(labelText: 'Tên', border: OutlineInputBorder())),
+              TextField(
+                controller: labelCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Tên',
+                  border: OutlineInputBorder(),
+                ),
+              ),
               const SizedBox(height: 12),
-              TextField(controller: descCtrl, decoration: const InputDecoration(labelText: 'Mô tả', border: OutlineInputBorder())),
+              TextField(
+                controller: descCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Mô tả',
+                  border: OutlineInputBorder(),
+                ),
+              ),
               const SizedBox(height: 12),
-              TextField(controller: sortCtrl, decoration: const InputDecoration(labelText: 'Thứ tự', border: OutlineInputBorder()), keyboardType: TextInputType.number),
+              TextField(
+                controller: sortCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Thứ tự',
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.number,
+              ),
             ],
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Huỷ')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Huỷ'),
+          ),
           FilledButton(
             onPressed: () async {
               final code = codeCtrl.text.trim();
@@ -124,13 +186,15 @@ class ZoneManagementScreen extends ConsumerWidget {
                   'sortOrder': sortOrder,
                 });
               } else {
-                await service.addZone(Zone(
-                  id: '',
-                  code: code,
-                  label: label,
-                  description: descCtrl.text.trim(),
-                  sortOrder: sortOrder,
-                ));
+                await service.addZone(
+                  Zone(
+                    id: '',
+                    code: code,
+                    label: label,
+                    description: descCtrl.text.trim(),
+                    sortOrder: sortOrder,
+                  ),
+                );
               }
               if (ctx.mounted) Navigator.pop(ctx);
             },
@@ -148,7 +212,10 @@ class ZoneManagementScreen extends ConsumerWidget {
         title: const Text('Xác nhận xoá'),
         content: Text('Bạn có chắc muốn xoá "${zone.label}" (${zone.code})?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Huỷ')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Huỷ'),
+          ),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () {

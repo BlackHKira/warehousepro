@@ -9,7 +9,9 @@ class ZoneService {
   Stream<List<Zone>> getZonesStream() {
     return _zones.orderBy('sortOrder').snapshots().map((snapshot) {
       return snapshot.docs
-          .map((doc) => Zone.fromMap(doc.id, doc.data() as Map<String, dynamic>))
+          .map(
+            (doc) => Zone.fromMap(doc.id, doc.data() as Map<String, dynamic>),
+          )
           .toList();
     });
   }
@@ -42,7 +44,8 @@ class ZoneService {
 
   Future<DocumentReference> addZone(Zone zone) => _zones.add(zone.toMap());
 
-  Future<void> updateZone(String id, Map<String, dynamic> data) => _zones.doc(id).update(data);
+  Future<void> updateZone(String id, Map<String, dynamic> data) =>
+      _zones.doc(id).update(data);
 
   Future<void> deleteZone(String id) => _zones.doc(id).delete();
 }

@@ -3,7 +3,8 @@ import 'package:flutter/material.dart';
 import 'product_detail_screen.dart';
 
 class SearchScreen extends StatefulWidget {
-  const SearchScreen({super.key});
+  final bool embedded;
+  const SearchScreen({super.key, this.embedded = false});
 
   @override
   State<SearchScreen> createState() => _SearchScreenState();
@@ -100,20 +101,29 @@ class _SearchScreenState extends State<SearchScreen> {
         title: const Text('Quét mã vạch'),
         content: Container(
           height: 180,
-          decoration: BoxDecoration(color: Colors.black, borderRadius: BorderRadius.circular(12)),
+          decoration: BoxDecoration(
+            color: Colors.black,
+            borderRadius: BorderRadius.circular(12),
+          ),
           child: const Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(Icons.qr_code_scanner, color: Colors.white, size: 56),
                 SizedBox(height: 8),
-                Text('Đưa mã vạch vào khung hình', style: TextStyle(color: Colors.white70)),
+                Text(
+                  'Đưa mã vạch vào khung hình',
+                  style: TextStyle(color: Colors.white70),
+                ),
               ],
             ),
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Huỷ')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Huỷ'),
+          ),
           FilledButton(
             onPressed: () {
               Navigator.pop(ctx);
@@ -133,88 +143,124 @@ class _SearchScreenState extends State<SearchScreen> {
   Widget build(BuildContext context) {
     final results = _filteredProducts;
 
+    final body = Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _searchController,
+                  decoration: InputDecoration(
+                    hintText: 'Tìm theo tên hoặc mã sản phẩm...',
+                    prefixIcon: const Icon(Icons.search),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    filled: true,
+                    fillColor: Theme.of(
+                      context,
+                    ).colorScheme.surfaceContainerHighest,
+                    suffixIcon: _searchController.text.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear),
+                            onPressed: () {
+                              _searchController.clear();
+                              setState(() {});
+                            },
+                          )
+                        : null,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              CircleAvatar(
+                backgroundColor: Theme.of(context).colorScheme.primary,
+                child: IconButton(
+                  icon: const Icon(Icons.qr_code_scanner, color: Colors.white),
+                  onPressed: _scanBarcode,
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            children: [
+              ChoiceChip(
+                label: const Text('Tìm bằng text'),
+                selected: !_showBarcodeSearch,
+                onSelected: (_) => setState(() => _showBarcodeSearch = false),
+              ),
+              const SizedBox(width: 8),
+              ChoiceChip(
+                label: const Text('Tìm bằng Barcode'),
+                selected: _showBarcodeSearch,
+                onSelected: (_) => setState(() => _showBarcodeSearch = true),
+              ),
+              const Spacer(),
+              Text(
+                '${results.length} kết quả',
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+
+        Expanded(
+          child: results.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.search_off,
+                        size: 48,
+                        color: Colors.grey.shade400,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Không tìm thấy sản phẩm',
+                        style: TextStyle(color: Colors.grey.shade500),
+                      ),
+                    ],
+                  ),
+                )
+              : ListView(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  children: results
+                      .map(
+                        (p) => _ProductResult(
+                          name: p.$1,
+                          barcode: p.$2,
+                          stock: p.$3,
+                          location: p.$4,
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => ProductDetailScreen(
+                                productName: p.$1,
+                                barcode: p.$2,
+                              ),
+                            ),
+                          ),
+                        ),
+                      )
+                      .toList(),
+                ),
+        ),
+      ],
+    );
+
+    if (widget.embedded) return body;
+
     return Scaffold(
       appBar: AppBar(title: const Text('Tra cứu sản phẩm')),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _searchController,
-                    decoration: InputDecoration(
-                      hintText: 'Tìm theo tên hoặc mã sản phẩm...',
-                      prefixIcon: const Icon(Icons.search),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                      filled: true,
-                      fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-                      suffixIcon: _searchController.text.isNotEmpty
-                          ? IconButton(icon: const Icon(Icons.clear), onPressed: () { _searchController.clear(); setState(() {}); })
-                          : null,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                CircleAvatar(
-                  backgroundColor: Theme.of(context).colorScheme.primary,
-                  child: IconButton(
-                    icon: const Icon(Icons.qr_code_scanner, color: Colors.white),
-                    onPressed: _scanBarcode,
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
-              children: [
-                ChoiceChip(
-                  label: const Text('Tìm bằng text'),
-                  selected: !_showBarcodeSearch,
-                  onSelected: (_) => setState(() => _showBarcodeSearch = false),
-                ),
-                const SizedBox(width: 8),
-                ChoiceChip(
-                  label: const Text('Tìm bằng Barcode'),
-                  selected: _showBarcodeSearch,
-                  onSelected: (_) => setState(() => _showBarcodeSearch = true),
-                ),
-                const Spacer(),
-                Text('${results.length} kết quả', style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
-              ],
-            ),
-          ),
-          const SizedBox(height: 8),
-
-          Expanded(
-            child: results.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.search_off, size: 48, color: Colors.grey.shade400),
-                        const SizedBox(height: 8),
-                        Text('Không tìm thấy sản phẩm', style: TextStyle(color: Colors.grey.shade500)),
-                      ],
-                    ),
-                  )
-                : ListView(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    children: results.map((p) => _ProductResult(
-                      name: p.$1,
-                      barcode: p.$2,
-                      stock: p.$3,
-                      location: p.$4,
-                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ProductDetailScreen(productName: p.$1, barcode: p.$2))),
-                    )).toList(),
-                  ),
-          ),
-        ],
-      ),
+      body: body,
     );
   }
 }
@@ -224,37 +270,68 @@ class _ProductResult extends StatelessWidget {
   final int stock;
   final VoidCallback onTap;
 
-  const _ProductResult({required this.name, required this.barcode, required this.stock, required this.location, required this.onTap});
+  const _ProductResult({
+    required this.name,
+    required this.barcode,
+    required this.stock,
+    required this.location,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final stockColor = stock <= 10 ? Colors.red : (stock <= 30 ? Colors.orange : Colors.green);
+    final stockColor = stock <= 10
+        ? Colors.red
+        : (stock <= 30 ? Colors.orange : Colors.green);
     return Card(
       child: ListTile(
         onTap: onTap,
         leading: Container(
-          width: 44, height: 44,
-          decoration: BoxDecoration(color: Theme.of(context).colorScheme.primaryContainer, borderRadius: BorderRadius.circular(10)),
-          child: Icon(Icons.inventory_2_outlined, color: Theme.of(context).colorScheme.onPrimaryContainer),
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.primaryContainer,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(
+            Icons.inventory_2_outlined,
+            color: Theme.of(context).colorScheme.onPrimaryContainer,
+          ),
         ),
         title: Text(name, style: const TextStyle(fontWeight: FontWeight.w500)),
         subtitle: Row(
           children: [
             Icon(Icons.qr_code, size: 12, color: Colors.grey.shade500),
             const SizedBox(width: 4),
-            Text(barcode, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+            Text(
+              barcode,
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+            ),
             const SizedBox(width: 12),
             Icon(Icons.location_on, size: 12, color: Colors.grey.shade500),
             const SizedBox(width: 2),
-            Text(location, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+            Text(
+              location,
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+            ),
           ],
         ),
         trailing: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            Text('$stock', style: TextStyle(fontWeight: FontWeight.bold, color: stockColor, fontSize: 16)),
-            Text('tồn', style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
+            Text(
+              '$stock',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: stockColor,
+                fontSize: 16,
+              ),
+            ),
+            Text(
+              'tồn',
+              style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+            ),
           ],
         ),
       ),

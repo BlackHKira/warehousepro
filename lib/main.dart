@@ -3,10 +3,11 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'firebase_options.dart';
 import 'screens/login_screen.dart';
-import 'screens/dashboard_screen.dart';
+import 'services/database_helper.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await DatabaseHelper.init();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   runApp(const ProviderScope(child: WarehouseProApp()));
 }
@@ -26,14 +27,5 @@ class WarehouseProApp extends StatelessWidget {
       ),
       home: const LoginScreen(),
     );
-  }
-}
-
-class MainShell extends StatelessWidget {
-  const MainShell({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const DashboardScreen();
   }
 }

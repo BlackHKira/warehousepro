@@ -1,10 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/database_helper.dart';
 import '../services/firestore_service.dart';
-
-const _keyLastSync = 'warehouse_last_sync';
 
 class WarehouseState {
   final int totalProducts;
@@ -28,8 +26,8 @@ class WarehouseState {
   });
 
   int get pendingSync =>
-    recentImports.where((e) => e['syncStatus'] == 'pending').length +
-    recentExports.where((e) => e['syncStatus'] == 'pending').length;
+      recentImports.where((e) => e['syncStatus'] == 'pending').length +
+      recentExports.where((e) => e['syncStatus'] == 'pending').length;
 
   WarehouseState copyWith({
     int? totalProducts,
@@ -56,10 +54,16 @@ class WarehouseState {
 
 class WarehouseNotifier extends StateNotifier<WarehouseState> {
   final FirestoreService _firestore = FirestoreService();
+  final DatabaseHelper _db = DatabaseHelper();
   final Connectivity _connectivity = Connectivity();
 
   WarehouseNotifier() : super(WarehouseState()) {
-    _loadPersistedState();
+    _initialize();
+  }
+
+  Future<void> _initialize() async {
+    await _loadFromSQLite();
+    await _pullFromFirestore();
     _connectivity.onConnectivityChanged.listen((results) {
       if (!results.contains(ConnectivityResult.none) && state.pendingSync > 0) {
         syncData();
@@ -67,48 +71,155 @@ class WarehouseNotifier extends StateNotifier<WarehouseState> {
     });
   }
 
-  Future<void> _loadPersistedState() async {
-    final prefs = await SharedPreferences.getInstance();
-    final lastSync = prefs.getString(_keyLastSync);
-    if (lastSync != null) {
-      state = state.copyWith(lastSyncAt: lastSync);
+  Future<void> _loadFromSQLite() async {
+    try {
+      final all = await _db.getTransactions(limit: 200);
+      _buildState(all);
+    } catch (_) {}
+  }
+
+  Future<void> _pullFromFirestore() async {
+    try {
+      final snapshot = await _firestore.transactions
+          .orderBy('createdAt', descending: true)
+          .limit(100)
+          .get();
+
+      final now = DateTime.now();
+      final syncTime = now.toIso8601String();
+
+      for (final doc in snapshot.docs) {
+        final existing = await _db.getByFirestoreId(doc.id);
+        if (existing != null) continue;
+
+        final data = doc.data() as Map<String, dynamic>;
+        final ts = data['createdAt'] as Timestamp?;
+        await _db.insertTransaction({
+          'firestoreId': doc.id,
+          'type': data['type'],
+          'supplier': data['supplier'],
+          'customer': data['customer'],
+          'items': data['items'],
+          'zone': data['zone'],
+          'products': data['products'],
+          'note': data['note'],
+          'syncStatus': 'synced',
+          'createdAt': ts?.toDate().toIso8601String() ?? syncTime,
+        });
+      }
+
+      final all = await _db.getTransactions(limit: 200);
+      _buildState(all);
+    } catch (_) {}
+  }
+
+  void _buildState(List<Map<String, dynamic>> all) {
+    final imports = <Map<String, dynamic>>[];
+    final exports = <Map<String, dynamic>>[];
+    int totalImportQty = 0;
+    int totalExportQty = 0;
+    int todayImportQty = 0;
+    int todayExportQty = 0;
+
+    final now = DateTime.now();
+    final todayStart = DateTime(now.year, now.month, now.day);
+
+    for (final entry in all) {
+      final items = (entry['items'] as num?)?.toInt() ?? 0;
+      if (entry['type'] == 'import') {
+        imports.add(entry);
+        totalImportQty += items;
+        final createdAt = DateTime.tryParse(entry['createdAt'] ?? '');
+        if (createdAt != null && !createdAt.isBefore(todayStart)) {
+          todayImportQty += items;
+        }
+      } else {
+        exports.add(entry);
+        totalExportQty += items;
+        final createdAt = DateTime.tryParse(entry['createdAt'] ?? '');
+        if (createdAt != null && !createdAt.isBefore(todayStart)) {
+          todayExportQty += items;
+        }
+      }
     }
+
+    state = state.copyWith(
+      totalProducts: totalImportQty - totalExportQty,
+      todayImports: todayImportQty,
+      todayExports: todayExportQty,
+      recentImports: imports,
+      recentExports: exports,
+      lastSyncAt: now.toIso8601String(),
+      syncError: null,
+    );
   }
 
-  void addImport(int itemCount, String supplier, {String zone = 'D'}) {
-    final entry = {
-      'syncStatus': 'pending',
-      'supplier': supplier,
-      'items': itemCount,
-      'type': 'import',
-      'zone': zone,
-      'time': DateTime.now().toIso8601String(),
-    };
-    state = state.copyWith(
-      totalProducts: state.totalProducts + itemCount,
-      todayImports: state.todayImports + itemCount,
-      recentImports: [entry, ...state.recentImports],
+  Future<void> addImport(
+    int itemCount,
+    String supplier, {
+    String zone = 'D',
+    List<Map<String, dynamic>> products = const [],
+    String note = '',
+  }) async {
+    await _addTransaction(
+      'import',
+      itemCount,
+      supplier: supplier,
+      zone: zone,
+      products: products,
+      note: note,
     );
-    _persistData();
-    syncData();
   }
 
-  void addExport(int itemCount, String customer, {String zone = 'D'}) {
-    final entry = {
-      'syncStatus': 'pending',
-      'customer': customer,
-      'items': itemCount,
-      'type': 'export',
-      'zone': zone,
-      'time': DateTime.now().toIso8601String(),
-    };
-    state = state.copyWith(
-      totalProducts: state.totalProducts - itemCount,
-      todayExports: state.todayExports + itemCount,
-      recentExports: [entry, ...state.recentExports],
+  Future<void> addExport(
+    int itemCount,
+    String customer, {
+    String zone = 'D',
+    List<Map<String, dynamic>> products = const [],
+    String note = '',
+  }) async {
+    await _addTransaction(
+      'export',
+      itemCount,
+      customer: customer,
+      zone: zone,
+      products: products,
+      note: note,
     );
-    _persistData();
-    syncData();
+  }
+
+  Future<void> _addTransaction(
+    String type,
+    int itemCount, {
+    String? supplier,
+    String? customer,
+    String zone = 'D',
+    List<Map<String, dynamic>> products = const [],
+    String note = '',
+  }) async {
+    try {
+      final now = DateTime.now();
+      final entry = {
+        'type': type,
+        'supplier': type == 'import' ? supplier : null,
+        'customer': type == 'export' ? customer : null,
+        'items': itemCount,
+        'zone': zone,
+        'products': products,
+        'note': note,
+        'syncStatus': 'pending',
+        'createdAt': now.toIso8601String(),
+      };
+
+      await _db.insertTransaction(entry);
+
+      final all = await _db.getTransactions(limit: 200);
+      _buildState(all);
+
+      syncData();
+    } catch (e) {
+      state = state.copyWith(syncError: 'Lỗi lưu giao dịch: $e');
+    }
   }
 
   Future<void> syncData() async {
@@ -125,70 +236,38 @@ class WarehouseNotifier extends StateNotifier<WarehouseState> {
     }
 
     try {
-      final syncedImports = <Map<String, dynamic>>[];
-      for (final entry in state.recentImports) {
-        if (entry['syncStatus'] == 'synced') {
-          syncedImports.add(Map<String, dynamic>.from(entry));
-          continue;
-        }
-        await _firestore.transactions.add({
-          'type': 'import',
+      final pending = await _db.getPendingTransactions();
+      for (final entry in pending) {
+        final docRef = await _firestore.transactions.add({
+          'type': entry['type'],
           'supplier': entry['supplier'],
-          'items': entry['items'],
-          'zone': entry['zone'] ?? 'D',
-          'createdAt': FieldValue.serverTimestamp(),
-        });
-        syncedImports.add({...entry, 'syncStatus': 'synced'});
-      }
-
-      final syncedExports = <Map<String, dynamic>>[];
-      for (final entry in state.recentExports) {
-        if (entry['syncStatus'] == 'synced') {
-          syncedExports.add(Map<String, dynamic>.from(entry));
-          continue;
-        }
-        await _firestore.transactions.add({
-          'type': 'export',
           'customer': entry['customer'],
           'items': entry['items'],
           'zone': entry['zone'] ?? 'D',
+          'products': entry['products'] ?? [],
+          'note': entry['note'] ?? '',
           'createdAt': FieldValue.serverTimestamp(),
         });
-        syncedExports.add({...entry, 'syncStatus': 'synced'});
+        final localId = entry['localId'] ?? entry['id'];
+        if (localId is int) {
+          await _db.markAsSynced(localId, docRef.id);
+        }
       }
 
-      final syncTime = DateTime.now().toIso8601String();
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_keyLastSync, syncTime);
-
-      state = state.copyWith(
-        isSyncing: false,
-        lastSyncAt: syncTime,
-        syncError: null,
-        recentImports: syncedImports,
-        recentExports: syncedExports,
-      );
-      _persistData();
+      final all = await _db.getTransactions(limit: 200);
+      _buildState(all);
+      state = state.copyWith(isSyncing: false, syncError: null);
     } catch (e) {
-      state = state.copyWith(
-        isSyncing: false,
-        syncError: 'Lỗi đồng bộ: $e',
-      );
+      state = state.copyWith(isSyncing: false, syncError: 'Lỗi đồng bộ: $e');
     }
   }
 
   void clearSyncError() {
     state = state.copyWith(syncError: null);
   }
-
-  Future<void> _persistData() async {
-    final prefs = await SharedPreferences.getInstance();
-    if (state.lastSyncAt != null) {
-      await prefs.setString(_keyLastSync, state.lastSyncAt!);
-    }
-  }
 }
 
-final warehouseProvider = StateNotifierProvider<WarehouseNotifier, WarehouseState>((ref) {
-  return WarehouseNotifier();
-});
+final warehouseProvider =
+    StateNotifierProvider<WarehouseNotifier, WarehouseState>((ref) {
+      return WarehouseNotifier();
+    });

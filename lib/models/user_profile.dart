@@ -19,16 +19,19 @@ class UserProfile {
     this.lastActive,
   });
 
-  factory UserProfile.fromMap(String id, Map<String, dynamic> map) => UserProfile(
-    id: id,
-    name: map['name'] as String? ?? '',
-    email: map['email'] as String? ?? '',
-    phone: map['phone'] as String? ?? '',
-    role: map['role'] as String? ?? 'Thủ kho',
-    status: map['status'] as String? ?? 'Hoạt động',
-    fcmToken: map['fcmToken'] as String?,
-    lastActive: map['lastActive'] != null ? (map['lastActive'] as dynamic).toDate() as DateTime? : null,
-  );
+  factory UserProfile.fromMap(String id, Map<String, dynamic> map) =>
+      UserProfile(
+        id: id,
+        name: map['name'] as String? ?? '',
+        email: map['email'] as String? ?? '',
+        phone: map['phone'] as String? ?? '',
+        role: map['role'] as String? ?? 'Thủ kho',
+        status: map['status'] as String? ?? 'Hoạt động',
+        fcmToken: map['fcmToken'] as String?,
+        lastActive: map['lastActive'] != null
+            ? (map['lastActive'] as dynamic).toDate() as DateTime?
+            : null,
+      );
 
   Map<String, dynamic> toMap() => {
     'name': name,

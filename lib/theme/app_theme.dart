@@ -56,7 +56,10 @@ class AppTheme {
       navigationRailTheme: const NavigationRailThemeData(
         backgroundColor: AppColors.navy,
         indicatorColor: Colors.white24,
-        selectedLabelTextStyle: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+        selectedLabelTextStyle: TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.w600,
+        ),
         unselectedLabelTextStyle: TextStyle(color: Colors.white60),
         selectedIconTheme: IconThemeData(color: Colors.white),
         unselectedIconTheme: IconThemeData(color: Colors.white60),
@@ -65,14 +68,18 @@ class AppTheme {
         style: FilledButton.styleFrom(
           backgroundColor: AppColors.navy,
           foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: AppColors.navy,
           side: const BorderSide(color: AppColors.border),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
