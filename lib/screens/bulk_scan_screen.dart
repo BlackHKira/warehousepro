@@ -178,15 +178,34 @@ class _BulkScanScreenState extends ConsumerState<BulkScanScreen> {
                       statusIcon = Icons.help;
                       statusLabel = 'Mất tích';
                   }
+                  Color cardBg;
+                  Color cardText;
+                  switch (r.status) {
+                    case 'match':
+                      cardBg = AppColors.successLight;
+                      cardText = AppColors.successDark;
+                      break;
+                    case 'shortage':
+                      cardBg = AppColors.errorLight;
+                      cardText = AppColors.errorDark;
+                      break;
+                    case 'surplus':
+                      cardBg = AppColors.warningLight;
+                      cardText = AppColors.warningDark;
+                      break;
+                    default:
+                      cardBg = statusColor.withValues(alpha: 0.1);
+                      cardText = statusColor;
+                  }
                   return Card(
                     child: ListTile(
-                      leading: CircleAvatar(backgroundColor: statusColor.withValues(alpha: 0.1), child: Icon(statusIcon, color: statusColor, size: 22)),
+                      leading: CircleAvatar(backgroundColor: cardBg, child: Icon(statusIcon, color: cardText, size: 22)),
                       title: Text(r.product, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14)),
                       subtitle: Text('Sổ: ${r.book} → Thực tế: ${r.actual}', style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
                       trailing: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
-                        child: Text(statusLabel, style: TextStyle(color: statusColor, fontSize: 11, fontWeight: FontWeight.w600)),
+                        decoration: BoxDecoration(color: cardBg, borderRadius: BorderRadius.circular(8)),
+                        child: Text(statusLabel, style: TextStyle(color: cardText, fontSize: 11, fontWeight: FontWeight.w600)),
                       ),
                     ),
                   );

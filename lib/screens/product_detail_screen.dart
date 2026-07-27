@@ -71,9 +71,9 @@ class ProductDetailScreen extends ConsumerWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
-                      _stockChip(label: 'Tồn kho', value: '${product.stock}', color: AppColors.primary),
-                      _stockChip(label: 'Khả dụng', value: '$available', color: AppColors.green),
-                      _stockChip(label: 'Chênh lệch', value: discrepancy >= 0 ? '+$discrepancy' : '$discrepancy', color: discrepancy == 0 ? AppColors.textSecondary : (discrepancy > 0 ? AppColors.green : AppColors.red)),
+                      _stockChip(label: 'Tồn kho', value: '${product.stock}', bgColor: AppColors.primaryLight, textColor: AppColors.primary),
+                      _stockChip(label: 'Khả dụng', value: '$available', bgColor: AppColors.successLight, textColor: AppColors.successDark),
+                      _stockChip(label: 'Chênh lệch', value: discrepancy >= 0 ? '+$discrepancy' : '$discrepancy', bgColor: AppColors.errorLight, textColor: AppColors.error),
                     ],
                   ),
                 ],
@@ -151,12 +151,20 @@ class ProductDetailScreen extends ConsumerWidget {
     );
   }
 
-  Widget _stockChip({required String label, required String value, required Color color}) {
-    return Column(
-      children: [
-        Text(value, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 28, color: color)),
-        Text(label, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-      ],
+  Widget _stockChip({required String label, required String value, required Color bgColor, required Color textColor}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        children: [
+          Text(value, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24, color: textColor)),
+          const SizedBox(height: 4),
+          Text(label, style: TextStyle(fontSize: 12, color: textColor.withValues(alpha: 0.8))),
+        ],
+      ),
     );
   }
 

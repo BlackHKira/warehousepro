@@ -176,7 +176,7 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
         const SizedBox(height: 16),
         Row(
           children: [
-            Expanded(child: OutlinedButton.icon(onPressed: () => _showScanDialog(zones), icon: const Icon(Icons.qr_code_scanner), label: const Text('Quét mã'), style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))))),
+            Expanded(child: OutlinedButton.icon(onPressed: () => _showScanDialog(zones), icon: const Icon(Icons.qr_code_scanner), label: const Text('Quét mã'), style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), side: const BorderSide(color: AppColors.primary), foregroundColor: AppColors.primary).copyWith(elevation: ButtonStyleButton.allOrNull(0), shadowColor: ButtonStyleButton.allOrNull(AppColors.primary.withValues(alpha: 0.25))))),
             const SizedBox(width: 12),
             Expanded(child: FilledButton.tonalIcon(onPressed: () => _showManualDialog(zones), icon: const Icon(Icons.edit), label: const Text('Nhập tay'), style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))))),
           ],
@@ -242,6 +242,11 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
             onPressed: _items.isEmpty ? null : _save,
             icon: const Icon(Icons.save),
             label: Text('Lưu phiếu nhập (${_items.length} SP, ${_items.fold(0, (s, e) => s + e.qty)} lượng)'),
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.green,
+              elevation: 0,
+              shadowColor: AppColors.green.withValues(alpha: 0.3),
+            ),
           ),
         ),
         const SizedBox(height: 40),

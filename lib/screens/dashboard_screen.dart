@@ -110,17 +110,17 @@ class DashboardScreen extends ConsumerWidget {
           // 4 Stat cards
           Row(
             children: [
-              Expanded(child: _StatCard(icon: Icons.inventory_2, label: 'Tổng SP', value: '$totalStock', color: AppColors.primary)),
+              Expanded(child: _StatCard(icon: Icons.inventory_2, label: 'Tổng SP', value: '$totalStock', color: AppColors.primary, lightColor: AppColors.primaryLight)),
               const SizedBox(width: 10),
-              Expanded(child: _StatCard(icon: Icons.arrow_downward, label: 'Nhập HN', value: '${warehouse.todayImports}', color: AppColors.green)),
+              Expanded(child: _StatCard(icon: Icons.arrow_downward, label: 'Nhập HN', value: '${warehouse.todayImports}', color: AppColors.green, lightColor: AppColors.successLight)),
             ],
           ),
           const SizedBox(height: 10),
           Row(
             children: [
-              Expanded(child: _StatCard(icon: Icons.arrow_upward, label: 'Xuất HN', value: '${warehouse.todayExports}', color: AppColors.red)),
+              Expanded(child: _StatCard(icon: Icons.arrow_upward, label: 'Xuất HN', value: '${warehouse.todayExports}', color: AppColors.red, lightColor: AppColors.errorLight)),
               const SizedBox(width: 10),
-              Expanded(child: _StatCard(icon: Icons.cloud_upload_outlined, label: 'Chờ đồng bộ', value: '${warehouse.pendingSync}', color: AppColors.orange)),
+              Expanded(child: _StatCard(icon: Icons.cloud_upload_outlined, label: 'Chờ đồng bộ', value: '${warehouse.pendingSync}', color: AppColors.orange, lightColor: AppColors.warningLight)),
             ],
           ),
           const SizedBox(height: 24),
@@ -249,7 +249,8 @@ class _StatCard extends StatelessWidget {
   final IconData icon;
   final String label, value;
   final Color color;
-  const _StatCard({required this.icon, required this.label, required this.value, required this.color});
+  final Color lightColor;
+  const _StatCard({required this.icon, required this.label, required this.value, required this.color, required this.lightColor});
 
   @override
   Widget build(BuildContext context) {
@@ -260,7 +261,7 @@ class _StatCard extends StatelessWidget {
           children: [
             Container(
               width: 44, height: 44,
-              decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
+              decoration: BoxDecoration(color: lightColor, borderRadius: BorderRadius.circular(12)),
               child: Icon(icon, color: color, size: 22),
             ),
             const SizedBox(width: 12),
