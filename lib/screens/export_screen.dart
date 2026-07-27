@@ -51,10 +51,12 @@ class _CreateExportTab extends ConsumerStatefulWidget {
 class _CreateExportTabState extends ConsumerState<_CreateExportTab> {
   final _items = <_ExportItem>[];
   final _customerController = TextEditingController();
+  final _noteController = TextEditingController();
 
   @override
   void dispose() {
     _customerController.dispose();
+    _noteController.dispose();
     super.dispose();
   }
 
@@ -190,6 +192,8 @@ class _CreateExportTabState extends ConsumerState<_CreateExportTab> {
                 Text('Phiếu xuất kho', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
                 const SizedBox(height: 12),
                 TextField(controller: _customerController, decoration: const InputDecoration(labelText: 'Khách hàng', prefixIcon: Icon(Icons.person), isDense: true)),
+                const SizedBox(height: 10),
+                TextField(controller: _noteController, decoration: const InputDecoration(labelText: 'Ghi chú', prefixIcon: Icon(Icons.note), isDense: true)),
               ],
             ),
           ),
@@ -280,6 +284,7 @@ class _PickingOrderTab extends StatelessWidget {
         _PickingOrderCard(id: 'PO-2024-001', customer: 'Cửa hàng Anh Tuấn', items: 5, status: 'pending', statusColor: AppColors.orange),
         _PickingOrderCard(id: 'PO-2024-002', customer: 'Tạp hóa Cô Mai', items: 3, status: 'in_progress', statusColor: AppColors.primary),
         _PickingOrderCard(id: 'PO-2024-003', customer: 'Đại lý Bia Hải', items: 8, status: 'completed', statusColor: AppColors.green),
+        _PickingOrderCard(id: 'PO-2024-004', customer: 'Công ty TNHH XYZ', items: 2, status: 'cancelled', statusColor: AppColors.textMuted),
       ],
     );
   }
@@ -335,6 +340,7 @@ class _PickingOrderCard extends StatelessWidget {
       case 'pending': return Icons.hourglass_empty;
       case 'in_progress': return Icons.sync;
       case 'completed': return Icons.check_circle;
+      case 'cancelled': return Icons.cancel;
       default: return Icons.help;
     }
   }
@@ -342,8 +348,9 @@ class _PickingOrderCard extends StatelessWidget {
   String _statusText() {
     switch (status) {
       case 'pending': return 'Chờ xử lý';
-      case 'in_progress': return 'Đang lấy';
-      case 'completed': return 'Hoàn tất';
+      case 'in_progress': return 'Đang xuất';
+      case 'completed': return 'Hoàn thành';
+      case 'cancelled': return 'Hủy bỏ';
       default: return status;
     }
   }

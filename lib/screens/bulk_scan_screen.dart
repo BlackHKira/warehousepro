@@ -29,7 +29,8 @@ class _BulkScanScreenState extends ConsumerState<BulkScanScreen> {
 
     for (final p in zoneProducts) {
       final actual = p.stock + (DateTime.now().millisecond % 5) - 2;
-      final status = actual == p.stock ? 'match' : (actual < p.stock ? 'shortage' : 'surplus');
+      final rnd = DateTime.now().millisecond % 7;
+      final status = rnd == 6 ? 'error' : (actual == p.stock ? 'match' : (actual < p.stock ? 'shortage' : 'surplus'));
       results.add(_ScanResult(product: p.name, barcode: p.barcode, book: p.stock, actual: actual < 0 ? 0 : actual, status: status));
     }
 
@@ -50,7 +51,7 @@ class _BulkScanScreenState extends ConsumerState<BulkScanScreen> {
     final zones = ref.watch(zonesProvider).valueOrNull ?? ZoneService.defaultZones;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Kiểm kê theo vị trí')),
+      appBar: AppBar(title: const Text('Kiểm kê')),
       body: Column(
         children: [
           Container(
@@ -163,9 +164,14 @@ class _BulkScanScreenState extends ConsumerState<BulkScanScreen> {
                       statusLabel = 'Thiếu ${r.book - r.actual}';
                       break;
                     case 'surplus':
-                      statusColor = AppColors.green;
+                      statusColor = AppColors.orange;
                       statusIcon = Icons.arrow_upward;
-                      statusLabel = 'Dư ${r.actual - r.book}';
+                      statusLabel = 'Thừa ${r.actual - r.book}';
+                      break;
+                    case 'error':
+                      statusColor = AppColors.red;
+                      statusIcon = Icons.error_outline;
+                      statusLabel = 'Lỗi';
                       break;
                     default:
                       statusColor = AppColors.orange;

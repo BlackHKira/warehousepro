@@ -6,6 +6,7 @@ import '../theme/app_theme.dart';
 import 'import_screen.dart';
 import 'export_screen.dart';
 import 'search_screen.dart';
+import 'bulk_scan_screen.dart';
 
 class DashboardScreen extends ConsumerWidget {
   final bool embedded;
@@ -16,7 +17,6 @@ class DashboardScreen extends ConsumerWidget {
     final warehouse = ref.watch(warehouseProvider);
     final productsAsync = ref.watch(productsProvider);
     final products = productsAsync.valueOrNull ?? [];
-    final lowStockCount = products.where((p) => p.isLowStock).length;
     final totalStock = products.fold(0, (sum, p) => sum + p.stock);
 
     final body = SingleChildScrollView(
@@ -120,7 +120,7 @@ class DashboardScreen extends ConsumerWidget {
             children: [
               Expanded(child: _StatCard(icon: Icons.arrow_upward, label: 'Xuất HN', value: '${warehouse.todayExports}', color: AppColors.red)),
               const SizedBox(width: 10),
-              Expanded(child: _StatCard(icon: Icons.warning_amber, label: 'Sắp hết', value: '$lowStockCount', color: AppColors.orange)),
+              Expanded(child: _StatCard(icon: Icons.cloud_upload_outlined, label: 'Chờ đồng bộ', value: '${warehouse.pendingSync}', color: AppColors.orange)),
             ],
           ),
           const SizedBox(height: 24),
@@ -138,7 +138,7 @@ class DashboardScreen extends ConsumerWidget {
           const SizedBox(height: 10),
           Row(
             children: [
-              Expanded(child: _ActionButton(icon: Icons.qr_code_scanner, label: 'Kiểm kê', color: AppColors.primary, onTap: () {})),
+              Expanded(child: _ActionButton(icon: Icons.qr_code_scanner, label: 'Kiểm kê', color: AppColors.primary, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const BulkScanScreen())))),
               const SizedBox(width: 10),
               Expanded(child: _ActionButton(icon: Icons.search, label: 'Tra cứu', color: AppColors.orange, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SearchScreen())))),
             ],
@@ -150,7 +150,11 @@ class DashboardScreen extends ConsumerWidget {
             children: [
               Text('Hoạt động gần đây', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
               const Spacer(),
-              TextButton(onPressed: () {}, child: const Text('Xem tất cả')),
+              TextButton(onPressed: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Xem tất cả hoạt động — đang phát triển'), behavior: SnackBarBehavior.floating),
+                );
+              }, child: const Text('Xem tất cả')),
             ],
           ),
           const SizedBox(height: 8),

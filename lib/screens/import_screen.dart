@@ -108,8 +108,14 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
             TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Huỷ')),
             FilledButton(
               onPressed: () {
-                final qty = int.tryParse(qtyCtrl.text) ?? 1;
+                final qty = int.tryParse(qtyCtrl.text) ?? 0;
                 if (nameCtrl.text.trim().isEmpty) return;
+                if (qty <= 0) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Số lượng phải lớn hơn 0'), behavior: SnackBarBehavior.floating),
+                  );
+                  return;
+                }
                 _addItem(nameCtrl.text.trim(), barcodeCtrl.text.trim().isEmpty ? 'N/A' : barcodeCtrl.text.trim(), qty, selectedZone);
                 Navigator.pop(ctx);
               },

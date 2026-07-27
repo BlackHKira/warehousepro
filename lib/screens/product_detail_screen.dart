@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/product_provider.dart';
+import '../providers/warehouse_provider.dart' show warehouseProvider;
 import '../theme/app_theme.dart';
 
 class ProductDetailScreen extends ConsumerWidget {
@@ -11,6 +12,7 @@ class ProductDetailScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final productAsync = ref.watch(productByIdProvider(productId));
     final product = productAsync.valueOrNull;
+    final warehouse = ref.watch(warehouseProvider);
 
     if (productAsync.isLoading) {
       return Scaffold(appBar: AppBar(title: const Text('Chi tiết')), body: const Center(child: CircularProgressIndicator()));
@@ -19,6 +21,20 @@ class ProductDetailScreen extends ConsumerWidget {
     if (product == null) {
       return Scaffold(appBar: AppBar(title: const Text('Chi tiết')), body: const Center(child: Text('Không tìm thấy sản phẩm')));
     }
+
+    final available = product.stock > 0 ? product.stock - (product.stock ~/ 10) : 0;
+    final discrepancy = product.stock - product.serverStock;
+
+    final allTxns = [...warehouse.recentImports, ...warehouse.recentExports];
+    final relatedTxns = allTxns.where((t) {
+      final products = t['products'] as List<dynamic>? ?? [];
+      return products.any((p) {
+        if (p is Map<String, dynamic>) {
+          return p['barcode'] == product.barcode || p['name'] == product.name;
+        }
+        return false;
+      });
+    }).toList();
 
     return Scaffold(
       appBar: AppBar(title: Text(product.name)),
@@ -47,12 +63,17 @@ class ProductDetailScreen extends ConsumerWidget {
                       Text('Mã: ${product.barcode}', style: const TextStyle(color: AppColors.textSecondary)),
                     ],
                   ),
+                  if (product.sku.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text('SKU: ${product.sku}', style: const TextStyle(fontSize: 12, color: AppColors.textMuted)),
+                  ],
                   const SizedBox(height: 20),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
-                      _stockChip(label: 'Tồn cục bộ', value: '${product.stock}', color: AppColors.green),
-                      _stockChip(label: 'Tồn server', value: '${product.serverStock}', color: AppColors.primary),
+                      _stockChip(label: 'Tồn kho', value: '${product.stock}', color: AppColors.primary),
+                      _stockChip(label: 'Khả dụng', value: '$available', color: AppColors.green),
+                      _stockChip(label: 'Chênh lệch', value: discrepancy >= 0 ? '+$discrepancy' : '$discrepancy', color: discrepancy == 0 ? AppColors.textSecondary : (discrepancy > 0 ? AppColors.green : AppColors.red)),
                     ],
                   ),
                 ],
@@ -92,6 +113,38 @@ class ProductDetailScreen extends ConsumerWidget {
                 ],
               ),
             ),
+          const SizedBox(height: 16),
+
+          // Transaction history
+          Text('Lịch sử giao dịch', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+          const SizedBox(height: 8),
+          if (relatedTxns.isEmpty)
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Center(
+                  child: Text('Chưa có giao dịch nào', style: TextStyle(color: AppColors.textMuted)),
+                ),
+              ),
+            )
+          else
+            ...relatedTxns.take(10).map((t) {
+              final isImport = t['type'] == 'import';
+              final qty = t['items'] ?? 0;
+              final label = isImport ? t['supplier'] ?? 'Nhà cung cấp' : t['customer'] ?? 'Khách hàng';
+              return Card(
+                child: ListTile(
+                  dense: true,
+                  leading: CircleAvatar(
+                    radius: 16,
+                    backgroundColor: (isImport ? AppColors.green : AppColors.red).withValues(alpha: 0.1),
+                    child: Icon(isImport ? Icons.arrow_downward : Icons.arrow_upward, color: isImport ? AppColors.green : AppColors.red, size: 18),
+                  ),
+                  title: Text('${isImport ? "Nhập kho" : "Xuất kho"} — $label', style: const TextStyle(fontSize: 13)),
+                  trailing: Text('${isImport ? "+" : "-"}$qty', style: TextStyle(fontWeight: FontWeight.bold, color: isImport ? AppColors.green : AppColors.red)),
+                ),
+              );
+            }),
           const SizedBox(height: 40),
         ],
       ),

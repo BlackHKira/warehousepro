@@ -15,6 +15,8 @@ class SearchScreen extends ConsumerStatefulWidget {
 class _SearchScreenState extends ConsumerState<SearchScreen> {
   final _searchController = TextEditingController();
   bool _showBarcodeSearch = false;
+  String _selectedZone = '';
+  String _selectedCategory = '';
 
   @override
   void initState() {
@@ -33,12 +35,20 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     final query = _searchController.text.trim();
     final productsAsync = ref.watch(productsProvider);
     final products = productsAsync.valueOrNull ?? [];
-    final filtered = query.isEmpty
-        ? products
-        : products.where((p) {
-            if (_showBarcodeSearch) return p.barcode.toLowerCase().contains(query.toLowerCase());
-            return p.name.toLowerCase().contains(query.toLowerCase()) || p.barcode.contains(query);
-          }).toList();
+    final zones = products.map((p) => p.zone).where((z) => z.isNotEmpty).toSet().toList()..sort();
+    final categories = products.map((p) => p.category).where((c) => c.isNotEmpty).toSet().toList()..sort();
+    final filtered = products.where((p) {
+      if (query.isNotEmpty) {
+        if (_showBarcodeSearch) {
+          if (!p.barcode.toLowerCase().contains(query.toLowerCase())) return false;
+        } else {
+          if (!p.name.toLowerCase().contains(query.toLowerCase()) && !p.barcode.contains(query)) return false;
+        }
+      }
+      if (_selectedZone.isNotEmpty && p.zone != _selectedZone) return false;
+      if (_selectedCategory.isNotEmpty && p.category != _selectedCategory) return false;
+      return true;
+    }).toList();
 
     final body = Column(
       children: [
@@ -76,12 +86,48 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Row(
             children: [
-              ChoiceChip(label: const Text('Tìm bằng text'), selected: !_showBarcodeSearch, onSelected: (_) => setState(() => _showBarcodeSearch = false)),
+              ChoiceChip(label: const Text('Text'), selected: !_showBarcodeSearch, onSelected: (_) => setState(() => _showBarcodeSearch = false)),
               const SizedBox(width: 8),
-              ChoiceChip(label: const Text('Tìm bằng Barcode'), selected: _showBarcodeSearch, onSelected: (_) => setState(() => _showBarcodeSearch = true)),
+              ChoiceChip(label: const Text('Barcode'), selected: _showBarcodeSearch, onSelected: (_) => setState(() => _showBarcodeSearch = true)),
               const Spacer(),
               Text('${filtered.length} kết quả', style: const TextStyle(fontSize: 12, color: AppColors.textMuted)),
             ],
+          ),
+        ),
+        const SizedBox(height: 6),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                if (zones.isNotEmpty) ...[
+                  ChoiceChip(label: const Text('Khu vực'), selected: false, onSelected: (_) {}, selectedColor: AppColors.primary.withValues(alpha: 0.3), disabledColor: AppColors.background),
+                  const SizedBox(width: 4),
+                  ...zones.map((z) => Padding(
+                    padding: const EdgeInsets.only(right: 4),
+                    child: FilterChip(
+                      label: Text(z, style: const TextStyle(fontSize: 12)),
+                      selected: _selectedZone == z,
+                      onSelected: (v) => setState(() => _selectedZone = v ? z : ''),
+                    ),
+                  )),
+                  const SizedBox(width: 12),
+                ],
+                if (categories.isNotEmpty) ...[
+                  ChoiceChip(label: const Text('Danh mục'), selected: false, onSelected: (_) {}, selectedColor: AppColors.primary.withValues(alpha: 0.3), disabledColor: AppColors.background),
+                  const SizedBox(width: 4),
+                  ...categories.map((c) => Padding(
+                    padding: const EdgeInsets.only(right: 4),
+                    child: FilterChip(
+                      label: Text(c, style: const TextStyle(fontSize: 12)),
+                      selected: _selectedCategory == c,
+                      onSelected: (v) => setState(() => _selectedCategory = v ? c : ''),
+                    ),
+                  )),
+                ],
+              ],
+            ),
           ),
         ),
         const SizedBox(height: 8),

@@ -196,8 +196,12 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                   keyboardType: TextInputType.emailAddress,
-                  validator: (v) =>
-                      v == null || v.trim().isEmpty ? 'Nhập email' : null,
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) return 'Nhập email';
+                    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+                    if (!emailRegex.hasMatch(v.trim())) return 'Email không hợp lệ';
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
@@ -219,8 +223,11 @@ class _LoginScreenState extends State<LoginScreen> {
                           setState(() => _obscurePassword = !_obscurePassword),
                     ),
                   ),
-                  validator: (v) =>
-                      v == null || v.isEmpty ? 'Nhập mật khẩu' : null,
+                  validator: (v) {
+                    if (v == null || v.isEmpty) return 'Nhập mật khẩu';
+                    if (v.length < 6) return 'Mật khẩu tối thiểu 6 ký tự';
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 24),
                 SizedBox(
