@@ -63,12 +63,12 @@ class Product {
       note: map['note'] as String? ?? '',
       createdAt: map['createdAt'] != null
           ? (map['createdAt'] is String
-              ? DateTime.tryParse(map['createdAt'] as String)
+              ? DateTime.tryParse(map['createdAt'])
               : (map['createdAt'] as Timestamp?)?.toDate())
           : null,
       updatedAt: updatedAtRaw != null
           ? (updatedAtRaw is String
-              ? DateTime.tryParse(updatedAtRaw as String)
+              ? DateTime.tryParse(updatedAtRaw)
               : (updatedAtRaw as Timestamp?)?.toDate())
           : null,
     );
