@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -62,13 +63,15 @@ class WarehouseNotifier extends StateNotifier<WarehouseState> {
   }
 
   Future<void> _initialize() async {
-    await _loadFromSQLite();
+    if (!kIsWeb) await _loadFromSQLite();
     await _pullFromFirestore();
-    _connectivity.onConnectivityChanged.listen((results) {
-      if (!results.contains(ConnectivityResult.none) && state.pendingSync > 0) {
-        syncData();
-      }
-    });
+    if (!kIsWeb) {
+      _connectivity.onConnectivityChanged.listen((results) {
+        if (!results.contains(ConnectivityResult.none) && state.pendingSync > 0) {
+          syncData();
+        }
+      });
+    }
   }
 
   Future<void> _loadFromSQLite() async {
@@ -88,28 +91,57 @@ class WarehouseNotifier extends StateNotifier<WarehouseState> {
       final now = DateTime.now();
       final syncTime = now.toIso8601String();
 
-      for (final doc in snapshot.docs) {
-        final existing = await _db.getByFirestoreId(doc.id);
-        if (existing != null) continue;
+      final allMaps = <Map<String, dynamic>>[];
 
+      for (final doc in snapshot.docs) {
         final data = doc.data() as Map<String, dynamic>;
         final ts = data['createdAt'] as Timestamp?;
-        await _db.insertTransaction({
-          'firestoreId': doc.id,
-          'type': data['type'],
-          'supplier': data['supplier'],
-          'customer': data['customer'],
-          'items': data['items'],
-          'zone': data['zone'],
-          'products': data['products'],
-          'note': data['note'],
-          'syncStatus': 'synced',
-          'createdAt': ts?.toDate().toIso8601String() ?? syncTime,
-        });
+
+        if (!kIsWeb) {
+          final existing = await _db.getByFirestoreId(doc.id);
+          if (existing != null) continue;
+          final createdAt = ts?.toDate().toIso8601String() ?? syncTime;
+          final isDup = await _db.isDuplicate(
+            data['type'] as String? ?? '',
+            (data['items'] as num?)?.toInt() ?? 0,
+            data['zone'] as String? ?? '',
+            createdAt,
+          );
+          if (isDup) continue;
+          await _db.insertTransaction({
+            'firestoreId': doc.id,
+            'type': data['type'],
+            'supplier': data['supplier'],
+            'customer': data['customer'],
+            'items': data['items'],
+            'zone': data['zone'],
+            'products': data['products'],
+            'note': data['note'],
+            'syncStatus': 'synced',
+            'createdAt': createdAt,
+          });
+        } else {
+          allMaps.add({
+            'id': doc.id,
+            'type': data['type'],
+            'supplier': data['supplier'],
+            'customer': data['customer'],
+            'items': data['items'],
+            'zone': data['zone'] ?? 'D',
+            'products': data['products'] ?? [],
+            'note': data['note'] ?? '',
+            'syncStatus': 'synced',
+            'createdAt': ts?.toDate().toIso8601String() ?? syncTime,
+          });
+        }
       }
 
-      final all = await _db.getTransactions(limit: 200);
-      _buildState(all);
+      if (kIsWeb) {
+        _buildState(allMaps);
+      } else {
+        final all = await _db.getTransactions(limit: 200);
+        _buildState(all);
+      }
     } catch (_) {}
   }
 
@@ -199,39 +231,49 @@ class WarehouseNotifier extends StateNotifier<WarehouseState> {
   }) async {
     try {
       final now = DateTime.now();
-      final entry = {
-        'type': type,
-        'supplier': type == 'import' ? supplier : null,
-        'customer': type == 'export' ? customer : null,
-        'items': itemCount,
-        'zone': zone,
-        'products': products,
-        'note': note,
-        'syncStatus': 'pending',
-        'createdAt': now.toIso8601String(),
-      };
 
-      await _db.insertTransaction(entry);
-
-      final all = await _db.getTransactions(limit: 200);
-      _buildState(all);
-
-      syncData();
+      if (kIsWeb) {
+        await _firestore.transactions.add({
+          'type': type,
+          'supplier': type == 'import' ? supplier : null,
+          'customer': type == 'export' ? customer : null,
+          'items': itemCount,
+          'zone': zone,
+          'products': products,
+          'note': note,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+        await _pullFromFirestore();
+      } else {
+        final entry = {
+          'type': type,
+          'supplier': type == 'import' ? supplier : null,
+          'customer': type == 'export' ? customer : null,
+          'items': itemCount,
+          'zone': zone,
+          'products': products,
+          'note': note,
+          'syncStatus': 'pending',
+          'createdAt': now.toIso8601String(),
+        };
+        await _db.insertTransaction(entry);
+        final all = await _db.getTransactions(limit: 200);
+        _buildState(all);
+        await syncData();
+      }
     } catch (e) {
       state = state.copyWith(syncError: 'Lỗi lưu giao dịch: $e');
     }
   }
 
   Future<void> syncData() async {
+    if (kIsWeb) return;
     if (state.isSyncing || state.pendingSync == 0) return;
     state = state.copyWith(isSyncing: true, syncError: null);
 
     final connectivityResult = await _connectivity.checkConnectivity();
     if (connectivityResult.contains(ConnectivityResult.none)) {
-      state = state.copyWith(
-        isSyncing: false,
-        syncError: 'Không có kết nối mạng',
-      );
+      state = state.copyWith(isSyncing: false, syncError: 'Không có kết nối mạng');
       return;
     }
 

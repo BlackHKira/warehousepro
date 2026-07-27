@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'firebase_options.dart';
 import 'screens/login_screen.dart';
 import 'services/database_helper.dart';
+import 'theme/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await DatabaseHelper.init();
+  if (!kIsWeb) await DatabaseHelper.init();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   runApp(const ProviderScope(child: WarehouseProApp()));
 }
@@ -20,11 +22,7 @@ class WarehouseProApp extends StatelessWidget {
     return MaterialApp(
       title: 'WarehousePro',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        colorSchemeSeed: const Color(0xFF1565C0),
-        brightness: Brightness.light,
-      ),
+      theme: AppTheme.light(),
       home: const LoginScreen(),
     );
   }

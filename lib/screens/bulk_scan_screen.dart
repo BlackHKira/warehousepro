@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/zone_provider.dart' show zonesProvider;
+import '../providers/product_provider.dart';
 import '../services/zone_service.dart' show ZoneService;
+import '../theme/app_theme.dart';
 
 class BulkScanScreen extends ConsumerStatefulWidget {
   const BulkScanScreen({super.key});
@@ -14,7 +16,6 @@ class _BulkScanScreenState extends ConsumerState<BulkScanScreen> {
   String _selectedZone = 'A1';
   bool _isScanning = false;
   int _scannedCount = 0;
-
   final _results = <_ScanResult>[];
 
   void _startScan() {
@@ -22,163 +23,77 @@ class _BulkScanScreenState extends ConsumerState<BulkScanScreen> {
   }
 
   void _simulateScan() {
-    final mockItems = [
-      _ScanResult(
-        product: 'Coca Cola 355ml',
-        barcode: '8934567890001',
-        book: 24,
-        actual: 24,
-        status: 'match',
-      ),
-      _ScanResult(
-        product: 'Pepsi 355ml',
-        barcode: '8934567890002',
-        book: 18,
-        actual: 18,
-        status: 'match',
-      ),
-      _ScanResult(
-        product: 'Sting đỏ 330ml',
-        barcode: '8934567890003',
-        book: 12,
-        actual: 10,
-        status: 'shortage',
-      ),
-      _ScanResult(
-        product: 'Aquafina 500ml',
-        barcode: '8934567890009',
-        book: 30,
-        actual: 31,
-        status: 'surplus',
-      ),
-      _ScanResult(
-        product: 'Mì tôm Hảo Hảo 75g',
-        barcode: '8934567890017',
-        book: 50,
-        actual: 50,
-        status: 'match',
-      ),
-      _ScanResult(
-        product: 'Bánh Oreo 97g',
-        barcode: '8934567890025',
-        book: 20,
-        actual: 18,
-        status: 'shortage',
-      ),
-      _ScanResult(
-        product: 'Dầu gội Clear 200ml',
-        barcode: '8934567890033',
-        book: 15,
-        actual: 15,
-        status: 'match',
-      ),
-      _ScanResult(
-        product: 'Nước rửa chén Sunlight',
-        barcode: '8934567890041',
-        book: 25,
-        actual: 0,
-        status: 'missing',
-      ),
-    ];
+    final products = ref.read(productsProvider).valueOrNull ?? [];
+    final zoneProducts = products.where((p) => p.zone == _selectedZone).toList();
+    final results = <_ScanResult>[];
+
+    for (final p in zoneProducts) {
+      final actual = p.stock + (DateTime.now().millisecond % 5) - 2;
+      final status = actual == p.stock ? 'match' : (actual < p.stock ? 'shortage' : 'surplus');
+      results.add(_ScanResult(product: p.name, barcode: p.barcode, book: p.stock, actual: actual < 0 ? 0 : actual, status: status));
+    }
+
+    if (results.isEmpty) {
+      results.add(_ScanResult(product: '(Chưa có SP trong khu vực $_selectedZone)', barcode: '-', book: 0, actual: 0, status: 'match'));
+    }
+
     setState(() {
       _results.clear();
-      _results.addAll(mockItems);
-      _scannedCount = mockItems.length;
+      _results.addAll(results);
+      _scannedCount = results.length;
       _isScanning = false;
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    final zones =
-        ref.watch(zonesProvider).valueOrNull ?? ZoneService.defaultZones;
+    final zones = ref.watch(zonesProvider).valueOrNull ?? ZoneService.defaultZones;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Kiểm kê theo vị trí')),
       body: Column(
         children: [
-          // Zone selector
           Container(
             padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Khu vực kho',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
-                ),
+                Text('Khu vực kho', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
                 const SizedBox(height: 8),
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: Row(
-                    children: zones
-                        .map(
-                          (z) => Padding(
-                            padding: const EdgeInsets.only(right: 8),
-                            child: FilterChip(
-                              label: Text(z.label),
-                              selected: _selectedZone == z.code,
-                              onSelected: (_) =>
-                                  setState(() => _selectedZone = z.code),
-                            ),
-                          ),
-                        )
-                        .toList(),
+                    children: zones.map((z) => Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: FilterChip(
+                        label: Text(z.label),
+                        selected: _selectedZone == z.code,
+                        onSelected: (_) => setState(() => _selectedZone = z.code),
+                      ),
+                    )).toList(),
                   ),
                 ),
               ],
             ),
           ),
-
-          // Continuous scan mode indicator
           if (_isScanning)
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 16),
               padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.black,
-                borderRadius: BorderRadius.circular(16),
-              ),
+              decoration: BoxDecoration(color: Colors.black, borderRadius: BorderRadius.circular(16)),
               child: Column(
                 children: [
-                  const SizedBox(height: 8),
                   Container(
-                    width: double.infinity,
-                    height: 180,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade900,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: Colors.green.shade700,
-                        width: 2,
-                      ),
-                    ),
+                    width: double.infinity, height: 180,
+                    decoration: BoxDecoration(color: Colors.grey.shade900, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.green, width: 2)),
                     child: const Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(
-                            Icons.qr_code_scanner,
-                            color: Colors.white,
-                            size: 72,
-                          ),
+                          Icon(Icons.qr_code_scanner, color: Colors.white, size: 72),
                           SizedBox(height: 12),
-                          Text(
-                            'Đang quét liên tục...',
-                            style: TextStyle(
-                              color: Colors.white70,
-                              fontSize: 16,
-                            ),
-                          ),
-                          Text(
-                            '≥ 5 mã/giây',
-                            style: TextStyle(
-                              color: Colors.greenAccent,
-                              fontSize: 13,
-                            ),
-                          ),
+                          Text('Đang quét liên tục...', style: TextStyle(color: Colors.white70, fontSize: 16)),
+                          Text('≥ 5 mã/giây', style: TextStyle(color: Colors.greenAccent, fontSize: 13)),
                         ],
                       ),
                     ),
@@ -187,40 +102,24 @@ class _BulkScanScreenState extends ConsumerState<BulkScanScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(
-                        Icons.check_circle,
-                        color: Colors.greenAccent,
-                        size: 16,
-                      ),
+                      const Icon(Icons.check_circle, color: Colors.greenAccent, size: 16),
                       const SizedBox(width: 6),
-                      Text(
-                        'Đã quét: $_scannedCount sản phẩm',
-                        style: const TextStyle(color: Colors.white70),
-                      ),
+                      Text('Đã quét: $_scannedCount sản phẩm', style: const TextStyle(color: Colors.white70)),
                     ],
                   ),
                   const SizedBox(height: 12),
                   SizedBox(
-                    width: double.infinity,
-                    height: 44,
+                    width: double.infinity, height: 44,
                     child: OutlinedButton.icon(
                       onPressed: _simulateScan,
                       icon: const Icon(Icons.stop),
                       label: const Text('Dừng quét & xem kết quả'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.white,
-                        side: const BorderSide(color: Colors.white54),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
+                      style: OutlinedButton.styleFrom(foregroundColor: Colors.white, side: const BorderSide(color: Colors.white54), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
                     ),
                   ),
                 ],
               ),
             ),
-
-          // Start scan button
           if (!_isScanning)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -230,33 +129,18 @@ class _BulkScanScreenState extends ConsumerState<BulkScanScreen> {
                   onPressed: _startScan,
                   icon: const Icon(Icons.qr_code_scanner),
                   label: const Text('Bắt đầu quét liên tục'),
-                  style: FilledButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
+                  style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
                 ),
               ),
             ),
-
-          // Results
           if (_results.isNotEmpty) ...[
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
               child: Row(
                 children: [
-                  Text(
-                    'Kết quả kiểm kê',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
+                  Text('Kết quả kiểm kê', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
                   const Spacer(),
-                  Text(
-                    '${_results.length} sản phẩm',
-                    style: TextStyle(color: Colors.grey.shade600),
-                  ),
+                  Text('${_results.length} sản phẩm', style: TextStyle(color: AppColors.textSecondary)),
                 ],
               ),
             ),
@@ -269,68 +153,34 @@ class _BulkScanScreenState extends ConsumerState<BulkScanScreen> {
                   String statusLabel;
                   switch (r.status) {
                     case 'match':
-                      statusColor = Colors.green;
+                      statusColor = AppColors.green;
                       statusIcon = Icons.check_circle;
                       statusLabel = 'Khớp';
                       break;
                     case 'shortage':
-                      statusColor = Colors.red;
+                      statusColor = AppColors.red;
                       statusIcon = Icons.arrow_downward;
                       statusLabel = 'Thiếu ${r.book - r.actual}';
                       break;
                     case 'surplus':
-                      statusColor = Colors.lightGreen;
+                      statusColor = AppColors.green;
                       statusIcon = Icons.arrow_upward;
                       statusLabel = 'Dư ${r.actual - r.book}';
                       break;
-                    case 'missing':
-                      statusColor = Colors.orange;
+                    default:
+                      statusColor = AppColors.orange;
                       statusIcon = Icons.help;
                       statusLabel = 'Mất tích';
-                      break;
-                    default:
-                      statusColor = Colors.grey;
-                      statusIcon = Icons.help;
-                      statusLabel = '';
                   }
-
                   return Card(
                     child: ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: statusColor.withAlpha(25),
-                        child: Icon(statusIcon, color: statusColor, size: 22),
-                      ),
-                      title: Text(
-                        r.product,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w500,
-                          fontSize: 14,
-                        ),
-                      ),
-                      subtitle: Text(
-                        'Sổ: ${r.book} → Thực tế: ${r.actual}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey.shade600,
-                        ),
-                      ),
+                      leading: CircleAvatar(backgroundColor: statusColor.withValues(alpha: 0.1), child: Icon(statusIcon, color: statusColor, size: 22)),
+                      title: Text(r.product, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14)),
+                      subtitle: Text('Sổ: ${r.book} → Thực tế: ${r.actual}', style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
                       trailing: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: statusColor.withAlpha(25),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          statusLabel,
-                          style: TextStyle(
-                            color: statusColor,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
+                        child: Text(statusLabel, style: TextStyle(color: statusColor, fontSize: 11, fontWeight: FontWeight.w600)),
                       ),
                     ),
                   );
@@ -338,19 +188,15 @@ class _BulkScanScreenState extends ConsumerState<BulkScanScreen> {
               ),
             ),
           ],
-
           if (_results.isEmpty && !_isScanning)
             const Expanded(
               child: Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.qr_code_scanner, size: 64, color: Colors.grey),
+                    Icon(Icons.qr_code_scanner, size: 64, color: AppColors.textMuted),
                     SizedBox(height: 12),
-                    Text(
-                      'Bấm "Bắt đầu quét" để kiểm kê',
-                      style: TextStyle(color: Colors.grey),
-                    ),
+                    Text('Bấm "Bắt đầu quét" để kiểm kê', style: TextStyle(color: AppColors.textMuted)),
                   ],
                 ),
               ),
@@ -365,11 +211,5 @@ class _ScanResult {
   final String product, barcode;
   final int book, actual;
   final String status;
-  _ScanResult({
-    required this.product,
-    required this.barcode,
-    required this.book,
-    required this.actual,
-    required this.status,
-  });
+  _ScanResult({required this.product, required this.barcode, required this.book, required this.actual, required this.status});
 }

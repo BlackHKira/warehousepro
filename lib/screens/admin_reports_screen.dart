@@ -1,234 +1,89 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../providers/product_provider.dart';
+import '../theme/app_theme.dart';
 
-class _ReportEntry {
-  final String name;
-  final int nhap, xuat;
-  final int tonDau, tonCuoi;
-  const _ReportEntry({
-    required this.name,
-    required this.nhap,
-    required this.xuat,
-    required this.tonDau,
-    required this.tonCuoi,
-  });
-}
-
-const _reportData = [
-  _ReportEntry(
-    name: 'Bộ phát Wi-Fi AX3000',
-    nhap: 40,
-    xuat: 25,
-    tonDau: 113,
-    tonCuoi: 128,
-  ),
-  _ReportEntry(
-    name: 'Cáp mạng Cat6 20m',
-    nhap: 0,
-    xuat: 12,
-    tonDau: 54,
-    tonCuoi: 42,
-  ),
-  _ReportEntry(
-    name: 'Camera IP trong nhà 2MP',
-    nhap: 10,
-    xuat: 8,
-    tonDau: 14,
-    tonCuoi: 16,
-  ),
-  _ReportEntry(
-    name: 'Ổ cứng SSD 1TB NVMe',
-    nhap: 0,
-    xuat: 4,
-    tonDau: 13,
-    tonCuoi: 9,
-  ),
-  _ReportEntry(
-    name: 'Bộ lưu điện UPS 650VA',
-    nhap: 5,
-    xuat: 3,
-    tonDau: 29,
-    tonCuoi: 31,
-  ),
-  _ReportEntry(
-    name: 'Tai nghe Bluetooth Pro',
-    nhap: 25,
-    xuat: 0,
-    tonDau: 49,
-    tonCuoi: 74,
-  ),
-  _ReportEntry(
-    name: 'Switch 8 port Gigabit',
-    nhap: 0,
-    xuat: 0,
-    tonDau: 22,
-    tonCuoi: 22,
-  ),
-  _ReportEntry(
-    name: 'Bàn phím cơ văn phòng',
-    nhap: 0,
-    xuat: 2,
-    tonDau: 7,
-    tonCuoi: 5,
-  ),
-];
-
-class AdminReportsScreen extends StatelessWidget {
+class AdminReportsScreen extends ConsumerWidget {
   final bool embedded;
   const AdminReportsScreen({super.key, this.embedded = false});
 
   @override
-  Widget build(BuildContext context) {
-    final totalNhap = _reportData.fold(0, (s, e) => s + e.nhap);
-    final totalXuat = _reportData.fold(0, (s, e) => s + e.xuat);
-    final totalTon = _reportData.fold(0, (s, e) => s + e.tonCuoi);
-    final totalValue = _reportData.fold(0, (s, e) => s + e.tonCuoi * 100000);
+  Widget build(BuildContext context, WidgetRef ref) {
+    final productsAsync = ref.watch(productsProvider);
+    final body = productsAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => Center(child: Text('Lỗi: $e')),
+      data: (products) {
+        final totalStock = products.fold(0, (s, p) => s + p.stock);
+        final totalValue = products.fold(0.0, (s, p) => s + p.stock * p.unitPrice);
+        final lowStock = products.where((p) => p.isLowStock).length;
 
-    final body = ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        // Stats cards
-        Row(
+        return ListView(
+          padding: const EdgeInsets.all(16),
           children: [
-            Expanded(
-              child: _StatCard(
-                icon: Icons.inventory_2,
-                label: 'Tồn cuối',
-                value: '$totalTon',
-                color: Colors.blue,
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _StatCard(
-                icon: Icons.arrow_downward,
-                label: 'Nhập',
-                value: '$totalNhap',
-                color: Colors.green,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 10),
-        Row(
-          children: [
-            Expanded(
-              child: _StatCard(
-                icon: Icons.arrow_upward,
-                label: 'Xuất',
-                value: '$totalXuat',
-                color: Colors.red,
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _StatCard(
-                icon: Icons.attach_money,
-                label: 'Giá trị tồn',
-                value: '${(totalValue / 1000000).toStringAsFixed(0)} tr',
-                color: Colors.orange,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 20),
-
-        // Date range
-        Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: Colors.blue.shade50,
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Row(
-            children: [
-              Icon(Icons.date_range, size: 18, color: Colors.blue.shade700),
-              const SizedBox(width: 10),
-              Text(
-                '01/07/2026 — 24/07/2026',
-                style: TextStyle(
-                  color: Colors.blue.shade800,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const Spacer(),
-              Icon(Icons.refresh, size: 16, color: Colors.blue.shade400),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-
-        Text(
-          'Chi tiết Nhập-Xuất-Tồn',
-          style: Theme.of(
-            context,
-          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
-        ),
-        const SizedBox(height: 8),
-
-        // Data table
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: Table(
-              columnWidths: const {
-                0: FlexColumnWidth(2.5),
-                1: FlexColumnWidth(1),
-                2: FlexColumnWidth(1),
-                3: FlexColumnWidth(1),
-                4: FlexColumnWidth(1),
-              },
+            Row(
               children: [
-                TableRow(
-                  decoration: BoxDecoration(color: Colors.grey.shade50),
-                  children: ['Sản phẩm', 'Nhập', 'Xuất', 'Tồn Đ', 'Tồn C']
-                      .map(
-                        (h) => Padding(
-                          padding: const EdgeInsets.symmetric(
-                            vertical: 10,
-                            horizontal: 6,
-                          ),
-                          child: Text(
-                            h,
-                            style: TextStyle(
-                              color: Colors.grey.shade600,
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      )
-                      .toList(),
-                ),
-                ..._reportData.map(
-                  (e) => TableRow(
-                    children: [
-                      _Cell(e.name, isBold: true),
-                      _Cell(
-                        e.nhap > 0 ? '+${e.nhap}' : '0',
-                        color: e.nhap > 0 ? Colors.green : null,
-                      ),
-                      _Cell(
-                        e.xuat > 0 ? '-${e.xuat}' : '0',
-                        color: e.xuat > 0 ? Colors.red : null,
-                      ),
-                      _Cell('${e.tonDau}'),
-                      _Cell('${e.tonCuoi}', isBold: true),
-                    ],
-                  ),
-                ),
+                Expanded(child: _StatCard(icon: Icons.inventory_2, label: 'Tổng tồn', value: '$totalStock', color: AppColors.primary)),
+                const SizedBox(width: 10),
+                Expanded(child: _StatCard(icon: Icons.attach_money, label: 'Giá trị tồn', value: '${(totalValue / 1000000).toStringAsFixed(1)} tr', color: AppColors.green)),
               ],
             ),
-          ),
-        ),
-      ],
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(child: _StatCard(icon: Icons.warning_amber, label: 'Sắp hết', value: '$lowStock', color: AppColors.orange)),
+                const SizedBox(width: 10),
+                Expanded(child: _StatCard(icon: Icons.category, label: 'Sản phẩm', value: '${products.length}', color: AppColors.primary)),
+              ],
+            ),
+            const SizedBox(height: 20),
+            Text('Chi tiết theo khu vực', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+            const SizedBox(height: 8),
+            ..._buildZoneSummary(products),
+            const SizedBox(height: 20),
+            Text('Top sản phẩm tồn thấp', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+            const SizedBox(height: 8),
+            ...products.where((p) => p.isLowStock).take(5).map((p) => Card(
+              child: ListTile(
+                leading: CircleAvatar(backgroundColor: AppColors.orange.withValues(alpha: 0.1), child: const Icon(Icons.warning_amber, color: AppColors.orange, size: 18)),
+                title: Text(p.name, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14)),
+                subtitle: Text('${p.zone} · ${p.location}', style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                trailing: Text('${p.stock}', style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.red)),
+              ),
+            )),
+          ],
+        );
+      },
     );
 
     if (embedded) return body;
+    return Scaffold(appBar: AppBar(title: const Text('Báo cáo XNT')), body: body);
+  }
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Báo cáo XNT')),
-      body: body,
-    );
+  List<Widget> _buildZoneSummary(List products) {
+    final zones = <String, int>{};
+    for (final p in products) {
+      zones[p.zone] = (zones[p.zone] ?? 0) + (p.stock as int);
+    }
+    final sortedZones = zones.entries.toList()..sort((a, b) => a.key.compareTo(b.key));
+    return sortedZones.map((e) => Card(
+      child: ListTile(
+        leading: Container(
+          width: 40, height: 40,
+          decoration: BoxDecoration(color: _zoneColor(e.key).withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
+          child: Center(child: Text(e.key, style: TextStyle(color: _zoneColor(e.key), fontSize: 12, fontWeight: FontWeight.bold))),
+        ),
+        title: Text('Khu ${e.key}', style: const TextStyle(fontWeight: FontWeight.w500)),
+        trailing: Text('${e.value}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+      ),
+    )).toList();
+  }
+
+  Color _zoneColor(String code) {
+    if (code.startsWith('A')) return AppColors.primary;
+    if (code.startsWith('B')) return AppColors.green;
+    if (code.startsWith('C')) return AppColors.orange;
+    return Colors.grey;
   }
 }
 
@@ -236,12 +91,7 @@ class _StatCard extends StatelessWidget {
   final IconData icon;
   final String label, value;
   final Color color;
-  const _StatCard({
-    required this.icon,
-    required this.label,
-    required this.value,
-    required this.color,
-  });
+  const _StatCard({required this.icon, required this.label, required this.value, required this.color});
 
   @override
   Widget build(BuildContext context) {
@@ -250,56 +100,16 @@ class _StatCard extends StatelessWidget {
         padding: const EdgeInsets.all(14),
         child: Row(
           children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: color.withAlpha(25),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(icon, color: color, size: 20),
-            ),
+            Container(width: 40, height: 40, decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)), child: Icon(icon, color: color, size: 20)),
             const SizedBox(width: 10),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  label,
-                  style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
-                ),
-                Text(
-                  value,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 20,
-                    color: color,
-                  ),
-                ),
+                Text(label, style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+                Text(value, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: color)),
               ],
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _Cell extends StatelessWidget {
-  final String text;
-  final bool isBold;
-  final Color? color;
-  const _Cell(this.text, {this.isBold = false, this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
-      child: Text(
-        text,
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: isBold ? FontWeight.w600 : FontWeight.normal,
-          color: color ?? Colors.black87,
         ),
       ),
     );

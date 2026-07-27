@@ -20,8 +20,9 @@ class FirestoreService {
       transactions.add(data);
   Stream<QuerySnapshot> getTransactionsStream({String? productId}) {
     var query = transactions.orderBy('createdAt', descending: true);
-    if (productId != null)
+    if (productId != null) {
       query = query.where('productId', isEqualTo: productId);
+    }
     return query.snapshots();
   }
 

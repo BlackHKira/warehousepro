@@ -7,19 +7,19 @@ import 'seed_firestore.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  print("STEP 1");
+  debugPrint("STEP 1");
 
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  print("STEP 2");
+  debugPrint("STEP 2");
 
   final seed = SeedFirestore();
 
-  print("STEP 3");
+  debugPrint("STEP 3");
 
   await seed.seedAll();
 
-  print("STEP 4");
+  debugPrint("STEP 4");
 }

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart' as p;
 
@@ -6,6 +7,7 @@ class DatabaseHelper {
   static Database? _db;
 
   static Future<void> init() async {
+    if (kIsWeb) return;
     _db ??= await openDatabase(
       p.join(await getDatabasesPath(), 'warehousepro.db'),
       version: 1,
@@ -30,11 +32,13 @@ class DatabaseHelper {
   }
 
   Future<Database> get database async {
+    if (kIsWeb) throw UnsupportedError('SQLite not supported on web');
     if (_db == null) await init();
     return _db!;
   }
 
   Future<int> insertTransaction(Map<String, dynamic> data) async {
+    if (kIsWeb) return 0;
     final db = await database;
     final entry = Map<String, dynamic>.from(data);
     if (entry['products'] is List) {
@@ -47,6 +51,7 @@ class DatabaseHelper {
     String? type,
     int limit = 200,
   }) async {
+    if (kIsWeb) return [];
     final db = await database;
     final results = await db.query(
       'stock_transactions',
@@ -59,6 +64,7 @@ class DatabaseHelper {
   }
 
   Future<List<Map<String, dynamic>>> getPendingTransactions() async {
+    if (kIsWeb) return [];
     final db = await database;
     final results = await db.query(
       'stock_transactions',
@@ -69,6 +75,7 @@ class DatabaseHelper {
   }
 
   Future<void> markAsSynced(int localId, String firestoreId) async {
+    if (kIsWeb) return;
     final db = await database;
     await db.update(
       'stock_transactions',
@@ -79,6 +86,7 @@ class DatabaseHelper {
   }
 
   Future<Map<String, dynamic>?> getByFirestoreId(String firestoreId) async {
+    if (kIsWeb) return null;
     final db = await database;
     final results = await db.query(
       'stock_transactions',
@@ -87,6 +95,18 @@ class DatabaseHelper {
       limit: 1,
     );
     return results.isNotEmpty ? _decodeRow(results.first) : null;
+  }
+
+  Future<bool> isDuplicate(String type, int items, String zone, String createdAt) async {
+    if (kIsWeb) return false;
+    final db = await database;
+    final results = await db.query(
+      'stock_transactions',
+      where: 'type = ? AND items = ? AND zone = ? AND createdAt = ?',
+      whereArgs: [type, items, zone, createdAt],
+      limit: 1,
+    );
+    return results.isNotEmpty;
   }
 
   Map<String, dynamic> _decodeRow(Map<String, dynamic> row) {
@@ -100,6 +120,7 @@ class DatabaseHelper {
   }
 
   Future<void> close() async {
+    if (kIsWeb) return;
     final db = _db;
     if (db != null) {
       await db.close();

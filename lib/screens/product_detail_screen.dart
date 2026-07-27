@@ -1,20 +1,27 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../providers/product_provider.dart';
+import '../theme/app_theme.dart';
 
-class ProductDetailScreen extends StatelessWidget {
-  final String productName, barcode;
-
-  const ProductDetailScreen({
-    super.key,
-    required this.productName,
-    required this.barcode,
-  });
+class ProductDetailScreen extends ConsumerWidget {
+  final String productId;
+  const ProductDetailScreen({super.key, required this.productId});
 
   @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final productAsync = ref.watch(productByIdProvider(productId));
+    final product = productAsync.valueOrNull;
+
+    if (productAsync.isLoading) {
+      return Scaffold(appBar: AppBar(title: const Text('Chi tiết')), body: const Center(child: CircularProgressIndicator()));
+    }
+
+    if (product == null) {
+      return Scaffold(appBar: AppBar(title: const Text('Chi tiết')), body: const Center(child: Text('Không tìm thấy sản phẩm')));
+    }
 
     return Scaffold(
-      appBar: AppBar(title: Text(productName)),
+      appBar: AppBar(title: Text(product.name)),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -25,55 +32,27 @@ class ProductDetailScreen extends StatelessWidget {
               child: Column(
                 children: [
                   Container(
-                    width: 72,
-                    height: 72,
-                    decoration: BoxDecoration(
-                      color: cs.primaryContainer,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Icon(
-                      Icons.inventory_2,
-                      color: cs.onPrimaryContainer,
-                      size: 40,
-                    ),
+                    width: 72, height: 72,
+                    decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(20)),
+                    child: const Icon(Icons.inventory_2, color: AppColors.primary, size: 40),
                   ),
                   const SizedBox(height: 16),
-                  Text(
-                    productName,
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                  Text(product.name, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
                   const SizedBox(height: 4),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(
-                        Icons.qr_code,
-                        size: 14,
-                        color: Colors.grey.shade600,
-                      ),
+                      const Icon(Icons.qr_code, size: 14, color: AppColors.textMuted),
                       const SizedBox(width: 4),
-                      Text(
-                        'Mã: $barcode',
-                        style: TextStyle(color: Colors.grey.shade600),
-                      ),
+                      Text('Mã: ${product.barcode}', style: const TextStyle(color: AppColors.textSecondary)),
                     ],
                   ),
                   const SizedBox(height: 20),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
-                      _stockChip(
-                        label: 'Tồn cục bộ',
-                        value: '84',
-                        color: Colors.green,
-                      ),
-                      _stockChip(
-                        label: 'Tồn server',
-                        value: '84',
-                        color: Colors.blue,
-                      ),
+                      _stockChip(label: 'Tồn cục bộ', value: '${product.stock}', color: AppColors.green),
+                      _stockChip(label: 'Tồn server', value: '${product.serverStock}', color: AppColors.primary),
                     ],
                   ),
                 ],
@@ -82,107 +61,48 @@ class ProductDetailScreen extends StatelessWidget {
           ),
           const SizedBox(height: 12),
 
-          // Sync status
-          Card(
-            child: ListTile(
-              leading: const Icon(Icons.sync, color: Colors.green),
-              title: const Text(
-                'Đã đồng bộ',
-                style: TextStyle(fontWeight: FontWeight.w500),
+          // Info fields
+          Text('Thông tin chi tiết', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+          const SizedBox(height: 8),
+          _infoRow(label: 'Danh mục', value: product.category),
+          _infoRow(label: 'Khu vực', value: product.zone),
+          _infoRow(label: 'Vị trí', value: product.location),
+          _infoRow(label: 'Đơn vị', value: product.unit),
+          _infoRow(label: 'Giá nhập', value: '${product.unitPrice.toStringAsFixed(0)}đ'),
+          _infoRow(label: 'Giá bán', value: '${product.exportPrice.toStringAsFixed(0)}đ'),
+          _infoRow(label: 'Ngưỡng tồn tối thiểu', value: '${product.minStock}'),
+          if (product.note.isNotEmpty) _infoRow(label: 'Ghi chú', value: product.note),
+          const SizedBox(height: 16),
+
+          // Low stock warning
+          if (product.isLowStock)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.orange.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AppColors.orange.withValues(alpha: 0.3)),
               ),
-              trailing: Text(
-                '19/07/2026 14:30',
-                style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+              child: Row(
+                children: [
+                  const Icon(Icons.warning_amber, color: AppColors.orange, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(child: Text('Sản phẩm sắp hết hàng (tồn ${product.stock}, ngưỡng ${product.minStock})', style: const TextStyle(color: AppColors.orange, fontSize: 13))),
+                ],
               ),
             ),
-          ),
-          const SizedBox(height: 16),
-
-          // Info fields
-          Text(
-            'Thông tin chi tiết',
-            style: Theme.of(
-              context,
-            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 8),
-          _infoRow(label: 'Danh mục', value: 'Nước ngọt'),
-          _infoRow(label: 'Đơn vị tính', value: 'Thùng (24 lon)'),
-          _infoRow(label: 'Vị trí kho', value: 'Khu A1 - Kệ 1 - Ô 01'),
-          _infoRow(label: 'Giá nhập', value: '168.000đ'),
-          _infoRow(label: 'Giá bán', value: '192.000đ'),
-          _infoRow(label: 'Ngưỡng tồn tối thiểu', value: '10'),
-          const SizedBox(height: 16),
-
-          // Transaction history
-          Text(
-            'Lịch sử giao dịch',
-            style: Theme.of(
-              context,
-            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 8),
-          _transactionRow(
-            date: '19/07',
-            type: 'Nhập kho',
-            qty: '+50',
-            color: Colors.green,
-            ref: 'PN-2024-089',
-          ),
-          _transactionRow(
-            date: '18/07',
-            type: 'Xuất kho',
-            qty: '-24',
-            color: Colors.orange,
-            ref: 'PX-2024-156',
-          ),
-          _transactionRow(
-            date: '17/07',
-            type: 'Xuất kho',
-            qty: '-12',
-            color: Colors.orange,
-            ref: 'PX-2024-148',
-          ),
-          _transactionRow(
-            date: '16/07',
-            type: 'Nhập kho',
-            qty: '+30',
-            color: Colors.green,
-            ref: 'PN-2024-082',
-          ),
-          _transactionRow(
-            date: '15/07',
-            type: 'Điều chỉnh',
-            qty: '-2',
-            color: Colors.red,
-            ref: 'Điều chỉnh kiểm kê',
-          ),
-
           const SizedBox(height: 40),
         ],
       ),
     );
   }
 
-  Widget _stockChip({
-    required String label,
-    required String value,
-    required Color color,
-  }) {
+  Widget _stockChip({required String label, required String value, required Color color}) {
     return Column(
       children: [
-        Text(
-          value,
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 28,
-            color: color,
-          ),
-        ),
-        Text(
-          label,
-          style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-        ),
+        Text(value, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 28, color: color)),
+        Text(label, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
       ],
     );
   }
@@ -192,49 +112,9 @@ class ProductDetailScreen extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         children: [
-          SizedBox(
-            width: 140,
-            child: Text(label, style: TextStyle(color: Colors.grey.shade600)),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(fontWeight: FontWeight.w500),
-            ),
-          ),
+          SizedBox(width: 140, child: Text(label, style: const TextStyle(color: AppColors.textSecondary))),
+          Expanded(child: Text(value, style: const TextStyle(fontWeight: FontWeight.w500))),
         ],
-      ),
-    );
-  }
-
-  Widget _transactionRow({
-    required String date,
-    required String type,
-    required String qty,
-    required Color color,
-    required String ref,
-  }) {
-    return Card(
-      child: ListTile(
-        dense: true,
-        leading: CircleAvatar(
-          radius: 16,
-          backgroundColor: color.withAlpha(25),
-          child: Icon(
-            type == 'Nhập kho' ? Icons.arrow_downward : Icons.arrow_upward,
-            color: color,
-            size: 18,
-          ),
-        ),
-        title: Text('$type • $ref', style: const TextStyle(fontSize: 14)),
-        subtitle: Text(
-          date,
-          style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
-        ),
-        trailing: Text(
-          qty,
-          style: TextStyle(fontWeight: FontWeight.bold, color: color),
-        ),
       ),
     );
   }
