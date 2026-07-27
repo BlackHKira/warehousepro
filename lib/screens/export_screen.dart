@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/zone.dart';
 import '../providers/warehouse_provider.dart' show warehouseProvider;
 import '../providers/zone_provider.dart' show zonesProvider;
+import '../models/product.dart';
 import '../providers/product_provider.dart';
 import '../services/zone_service.dart' show ZoneService;
 import '../theme/app_theme.dart';
@@ -121,7 +122,33 @@ class _CreateExportTabState extends ConsumerState<_CreateExportTab> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: 'Tên sản phẩm', border: OutlineInputBorder()), autofocus: true),
+                TextField(
+                  controller: nameCtrl,
+                  readOnly: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Tên sản phẩm',
+                    border: OutlineInputBorder(),
+                    suffixIcon: Icon(Icons.search),
+                  ),
+                  onTap: () async {
+                    final products = ref.read(productsProvider).valueOrNull ?? [];
+                    final selected = await showModalBottomSheet<Product>(
+                      context: ctx,
+                      isScrollControlled: true,
+                      shape: const RoundedRectangleBorder(
+                        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                      ),
+                      builder: (_) => _ProductPickerSheet(products: products),
+                    );
+                    if (selected != null) {
+                      setDialogState(() {
+                        nameCtrl.text = selected.name;
+                        barcodeCtrl.text = selected.barcode;
+                        if (selected.zone.isNotEmpty) selectedZone = selected.zone;
+                      });
+                    }
+                  },
+                ),
                 const SizedBox(height: 12),
                 TextField(controller: barcodeCtrl, decoration: const InputDecoration(labelText: 'Mã vạch', border: OutlineInputBorder())),
                 const SizedBox(height: 12),
@@ -163,17 +190,24 @@ class _CreateExportTabState extends ConsumerState<_CreateExportTab> {
     final mainZone = zoneCounts.entries.reduce((a, b) => a.value >= b.value ? a : b).key;
     final productsList = _items.map((item) => {'name': item.name, 'barcode': item.barcode, 'quantity': item.qty, 'zone': item.zone}).toList();
 
-    await ref.read(warehouseProvider.notifier).addExport(
+    final ok = await ref.read(warehouseProvider.notifier).addExport(
           totalQty,
           _customerController.text.trim().isEmpty ? 'Khách lẻ' : _customerController.text.trim(),
           zone: mainZone,
           products: productsList,
         );
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Đã lưu phiếu xuất — $totalQty sản phẩm'), behavior: SnackBarBehavior.floating, backgroundColor: AppColors.red),
-    );
-    Navigator.pop(context);
+    if (ok) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Đã lưu phiếu xuất — $totalQty sản phẩm'), behavior: SnackBarBehavior.floating, backgroundColor: AppColors.red),
+      );
+      Navigator.pop(context);
+    } else {
+      final err = ref.read(warehouseProvider).syncError ?? 'Không xác định';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Lỗi lưu: $err'), behavior: SnackBarBehavior.floating, backgroundColor: AppColors.red),
+      );
+    }
   }
 
   @override
@@ -360,4 +394,99 @@ class _ExportItem {
   final String name, barcode, zone;
   int qty;
   _ExportItem({required this.name, required this.barcode, required this.qty, this.zone = 'A1'});
+}
+
+class _ProductPickerSheet extends StatefulWidget {
+  final List<Product> products;
+  const _ProductPickerSheet({required this.products});
+
+  @override
+  State<_ProductPickerSheet> createState() => _ProductPickerSheetState();
+}
+
+class _ProductPickerSheetState extends State<_ProductPickerSheet> {
+  final _searchCtrl = TextEditingController();
+  List<Product> _filtered = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _filtered = widget.products;
+  }
+
+  void _filter(String q) {
+    final query = q.toLowerCase();
+    setState(() {
+      _filtered = widget.products.where((p) =>
+          p.name.toLowerCase().contains(query) ||
+          p.barcode.contains(query) ||
+          p.sku.toLowerCase().contains(query)).toList();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return DraggableScrollableSheet(
+      initialChildSize: 0.7,
+      minChildSize: 0.4,
+      maxChildSize: 0.9,
+      expand: false,
+      builder: (_, scrollCtrl) => Column(
+        children: [
+          Container(
+            margin: const EdgeInsets.only(top: 8),
+            width: 40, height: 4,
+            decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2)),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+            child: TextField(
+              controller: _searchCtrl,
+              decoration: InputDecoration(
+                hintText: 'Tìm sản phẩm...',
+                prefixIcon: const Icon(Icons.search),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                isDense: true,
+                suffixIcon: _searchCtrl.text.isNotEmpty
+                    ? IconButton(icon: const Icon(Icons.clear, size: 18), onPressed: () { _searchCtrl.clear(); _filter(''); })
+                    : null,
+              ),
+              onChanged: _filter,
+            ),
+          ),
+          if (_filtered.isEmpty)
+            Expanded(
+              child: Center(
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(Icons.inventory_2_outlined, size: 48, color: AppColors.textMuted),
+                  const SizedBox(height: 8),
+                  Text('Không tìm thấy sản phẩm', style: TextStyle(color: AppColors.textMuted)),
+                ]),
+              ),
+            )
+          else
+            Expanded(
+              child: ListView.builder(
+                controller: scrollCtrl,
+                itemCount: _filtered.length,
+                itemBuilder: (_, i) {
+                  final p = _filtered[i];
+                  return ListTile(
+                    title: Text(p.name),
+                    subtitle: Text('${p.barcode} • ${p.zone} • Tồn: ${p.stock}'),
+                    onTap: () => Navigator.pop(context, p),
+                  );
+                },
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
 }

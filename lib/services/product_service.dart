@@ -1,8 +1,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_core/firebase_core.dart';
 import '../models/product.dart';
 
 class ProductService {
-  final _collection = FirebaseFirestore.instance.collection('products');
+  final _collection = FirebaseFirestore.instanceFor(
+    app: Firebase.app(),
+    databaseId: 'warehousepro-db',
+  ).collection('products');
 
   Stream<List<Product>> streamProducts() {
     return _collection.orderBy('name').snapshots().map(

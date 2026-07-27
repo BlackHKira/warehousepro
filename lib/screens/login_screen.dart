@@ -31,6 +31,9 @@ class _LoginScreenState extends State<LoginScreen> {
     final password = _passwordController.text;
 
     if (email == 'admin' && password == 'admin') {
+      try {
+        await FirebaseAuth.instance.signInAnonymously();
+      } catch (_) {}
       await Future.delayed(const Duration(milliseconds: 600));
       if (!mounted) return;
       Navigator.pushReplacement(
@@ -44,6 +47,9 @@ class _LoginScreenState extends State<LoginScreen> {
     }
 
     if (email == 'user' && password == 'user') {
+      try {
+        await FirebaseAuth.instance.signInAnonymously();
+      } catch (_) {}
       await Future.delayed(const Duration(milliseconds: 600));
       if (!mounted) return;
       Navigator.pushReplacement(

@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class Product {
   final String id;
   final String name;
@@ -35,28 +37,42 @@ class Product {
     this.updatedAt,
   });
 
-  factory Product.fromMap(String id, Map<String, dynamic> map) => Product(
-        id: id,
-        name: map['name'] as String? ?? '',
-        barcode: map['barcode'] as String? ?? '',
-        sku: map['sku'] as String? ?? '',
-        category: map['category'] as String? ?? '',
-        zone: map['zone'] as String? ?? '',
-        location: map['location'] as String? ?? '',
-        unit: map['unit'] as String? ?? 'cái',
-        stock: (map['stock'] as num?)?.toInt() ?? 0,
-        serverStock: (map['serverStock'] as num?)?.toInt() ?? 0,
-        unitPrice: (map['unitPrice'] as num?)?.toDouble() ?? 0,
-        exportPrice: (map['exportPrice'] as num?)?.toDouble() ?? 0,
-        minStock: (map['minStock'] as num?)?.toInt() ?? 10,
-        note: map['note'] as String? ?? '',
-        createdAt: map['createdAt'] != null
-            ? DateTime.tryParse(map['createdAt'] as String)
-            : null,
-        updatedAt: map['updatedAt'] != null
-            ? DateTime.tryParse(map['updatedAt'] as String)
-            : null,
-      );
+  factory Product.fromMap(String id, Map<String, dynamic> map) {
+    final warehouseLocation = map['warehouseLocation'] as String? ?? '';
+    final zone = warehouseLocation.isNotEmpty
+        ? warehouseLocation.split('-').first
+        : (map['zone'] as String? ?? '');
+    final updatedAtRaw = map['updatedAt'];
+
+    return Product(
+      id: id,
+      name: map['name'] as String? ?? '',
+      barcode: map['barcode'] as String? ?? '',
+      sku: map['sku'] as String? ?? map['id'] as String? ?? '',
+      category: map['category'] as String? ?? '',
+      zone: zone,
+      location: warehouseLocation.isNotEmpty
+          ? warehouseLocation
+          : (map['location'] as String? ?? ''),
+      unit: map['unit'] as String? ?? 'cái',
+      stock: (map['stock'] as num?)?.toInt() ?? 0,
+      serverStock: (map['serverStock'] as num?)?.toInt() ?? 0,
+      unitPrice: (map['unitPrice'] as num?)?.toDouble() ?? 0,
+      exportPrice: (map['exportPrice'] as num?)?.toDouble() ?? 0,
+      minStock: (map['minStock'] as num?)?.toInt() ?? 10,
+      note: map['note'] as String? ?? '',
+      createdAt: map['createdAt'] != null
+          ? (map['createdAt'] is String
+              ? DateTime.tryParse(map['createdAt'] as String)
+              : (map['createdAt'] as Timestamp?)?.toDate())
+          : null,
+      updatedAt: updatedAtRaw != null
+          ? (updatedAtRaw is String
+              ? DateTime.tryParse(updatedAtRaw as String)
+              : (updatedAtRaw as Timestamp?)?.toDate())
+          : null,
+    );
+  }
 
   Map<String, dynamic> toMap() => {
         'name': name,

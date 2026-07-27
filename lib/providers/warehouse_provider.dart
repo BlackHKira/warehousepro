@@ -55,7 +55,7 @@ class WarehouseState {
 
 class WarehouseNotifier extends StateNotifier<WarehouseState> {
   final FirestoreService _firestore = FirestoreService();
-  final DatabaseHelper _db = DatabaseHelper();
+  final DatabaseHelper _db = DatabaseHelper.instance;
   final Connectivity _connectivity = Connectivity();
 
   WarehouseNotifier() : super(WarehouseState()) {
@@ -83,10 +83,15 @@ class WarehouseNotifier extends StateNotifier<WarehouseState> {
 
   Future<void> _pullFromFirestore() async {
     try {
-      final snapshot = await _firestore.transactions
-          .orderBy('createdAt', descending: true)
-          .limit(100)
-          .get();
+      QuerySnapshot snapshot;
+      try {
+        snapshot = await _firestore.transactions
+            .orderBy('createdAt', descending: true)
+            .limit(100)
+            .get();
+      } catch (_) {
+        snapshot = await _firestore.transactions.limit(100).get();
+      }
 
       final now = DateTime.now();
       final syncTime = now.toIso8601String();
@@ -142,7 +147,9 @@ class WarehouseNotifier extends StateNotifier<WarehouseState> {
         final all = await _db.getTransactions(limit: 200);
         _buildState(all);
       }
-    } catch (_) {}
+    } catch (e) {
+      state = state.copyWith(syncError: 'Lỗi tải dữ liệu từ Firestore: $e');
+    }
   }
 
   void _buildState(List<Map<String, dynamic>> all) {
@@ -186,14 +193,14 @@ class WarehouseNotifier extends StateNotifier<WarehouseState> {
     );
   }
 
-  Future<void> addImport(
+  Future<bool> addImport(
     int itemCount,
     String supplier, {
     String zone = 'D',
     List<Map<String, dynamic>> products = const [],
     String note = '',
   }) async {
-    await _addTransaction(
+    return await _addTransaction(
       'import',
       itemCount,
       supplier: supplier,
@@ -203,14 +210,14 @@ class WarehouseNotifier extends StateNotifier<WarehouseState> {
     );
   }
 
-  Future<void> addExport(
+  Future<bool> addExport(
     int itemCount,
     String customer, {
     String zone = 'D',
     List<Map<String, dynamic>> products = const [],
     String note = '',
   }) async {
-    await _addTransaction(
+    return await _addTransaction(
       'export',
       itemCount,
       customer: customer,
@@ -220,7 +227,7 @@ class WarehouseNotifier extends StateNotifier<WarehouseState> {
     );
   }
 
-  Future<void> _addTransaction(
+  Future<bool> _addTransaction(
     String type,
     int itemCount, {
     String? supplier,
@@ -261,8 +268,10 @@ class WarehouseNotifier extends StateNotifier<WarehouseState> {
         _buildState(all);
         await syncData();
       }
+      return true;
     } catch (e) {
       state = state.copyWith(syncError: 'Lỗi lưu giao dịch: $e');
+      return false;
     }
   }
 
