@@ -34,6 +34,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
     // Tài khoản demo: admin/admin → Quản lý
     if (email == 'admin' && password == 'admin') {
+      try {
+        await FirebaseAuth.instance.signInAnonymously();
+      } catch (_) {}
       await Future.delayed(const Duration(milliseconds: 600));
       if (!mounted) return;
       Navigator.pushReplacement(
@@ -48,6 +51,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
     // Tài khoản demo: user/user → Thủ kho
     if (email == 'user' && password == 'user') {
+      try {
+        await FirebaseAuth.instance.signInAnonymously();
+      } catch (_) {}
       await Future.delayed(const Duration(milliseconds: 600));
       if (!mounted) return;
       Navigator.pushReplacement(
