@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_core/firebase_core.dart';
 import '../providers/user_profile_provider.dart';
 import '../providers/warehouse_provider.dart';
 import '../services/auth_service.dart';
@@ -28,24 +31,68 @@ class _MainShellState extends ConsumerState<MainShell> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
-      final isAdmin = widget.initialRole != 'Thủ kho';
-      ref.read(userProfileProvider.notifier).state = UserProfileState(
-        name: isAdmin ? 'Admin' : 'User',
-        email: isAdmin ? 'admin@whpro.com' : 'user@whpro.com',
-        role: isAdmin ? AppRole.admin : AppRole.staff,
-        rawRole: widget.initialRole,
-      );
+      await _loadProfile();
     });
+  }
+
+  Future<void> _loadProfile() async {
+    final user = FirebaseAuth.instance.currentUser;
+    String name = '';
+    String email = user?.email ?? '';
+    String role = widget.initialRole;
+
+    if (user != null) {
+      try {
+        final doc = await FirebaseFirestore.instanceFor(
+          app: Firebase.app(),
+          databaseId: 'warehousepro-db',
+        ).collection('users').doc(user.uid).get();
+
+        if (doc.exists) {
+          final data = doc.data()!;
+          name = data['name'] as String? ?? '';
+          email = data['email'] as String? ?? email;
+          final firestoreRole = data['role'] as String? ?? '';
+          if (firestoreRole == 'Quản lý' || firestoreRole == 'Kế toán') role = firestoreRole;
+        }
+      } catch (_) {}
+    }
+
+    if (name.isEmpty) {
+      name = role == 'Thủ kho' ? 'User' : role == 'Kế toán' ? 'Kế toán' : 'Admin';
+    }
+    if (email.isEmpty) {
+      email = role == 'Thủ kho' ? 'user@whpro.com' : role == 'Kế toán' ? 'ke toan@whpro.com' : 'admin@whpro.com';
+    }
+
+    AppRole mappedRole;
+    switch (role) {
+      case 'Kế toán':
+        mappedRole = AppRole.accountant;
+      case 'Quản lý':
+        mappedRole = AppRole.admin;
+      default:
+        mappedRole = AppRole.staff;
+    }
+
+    if (!mounted) return;
+    ref.read(userProfileProvider.notifier).state = UserProfileState(
+      name: name,
+      email: email,
+      role: mappedRole,
+      rawRole: role,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final profile = ref.watch(userProfileProvider);
-    final isAdmin = profile?.isAdmin ?? (widget.initialRole != 'Thủ kho');
+    final isAdmin = profile?.isAdmin ?? (widget.initialRole == 'Quản lý');
+    final isAccountant = profile?.isAccountant ?? (widget.initialRole == 'Kế toán');
 
-    final tabs = isAdmin ? _adminTabs : _staffTabs;
+    final tabs = isAdmin ? _adminTabs : isAccountant ? _accountantTabs : _staffTabs;
     final selectedIndex = _selectedIndex < tabs.length ? _selectedIndex : 0;
     final warehouse = ref.watch(warehouseProvider);
 
@@ -219,6 +266,11 @@ const _staffTabs = [
   _TabDef(ImportScreen(embedded: true), Icons.add_box_outlined, Icons.add_box, 'Nhập'),
   _TabDef(ExportScreen(embedded: true), Icons.outbox_outlined, Icons.outbox, 'Xuất'),
   _TabDef(SearchScreen(embedded: true), Icons.search, Icons.search, 'Tra cứu'),
+];
+
+const _accountantTabs = [
+  _TabDef(AdminInventoryScreen(embedded: true), Icons.inventory_2_outlined, Icons.inventory_2, 'Tồn kho'),
+  _TabDef(AdminReportsScreen(embedded: true), Icons.bar_chart_outlined, Icons.bar_chart, 'Báo cáo'),
 ];
 
 const _adminTabs = [

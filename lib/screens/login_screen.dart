@@ -30,10 +30,10 @@ class _LoginScreenState extends State<LoginScreen> {
     final email = _emailController.text.trim();
     final password = _passwordController.text;
 
-    if (email == 'admin' && password == 'admin') {
-      try {
-        await FirebaseAuth.instance.signInAnonymously();
-      } catch (_) {}
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _isLoading = true);
+
+    if (email == 'admin@gmail.com' && password == 'admin123') {
       await Future.delayed(const Duration(milliseconds: 600));
       if (!mounted) return;
       Navigator.pushReplacement(
@@ -46,10 +46,7 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
-    if (email == 'user' && password == 'user') {
-      try {
-        await FirebaseAuth.instance.signInAnonymously();
-      } catch (_) {}
+    if (email == 'user@gmail.com' && password == 'user123') {
       await Future.delayed(const Duration(milliseconds: 600));
       if (!mounted) return;
       Navigator.pushReplacement(
@@ -61,9 +58,6 @@ class _LoginScreenState extends State<LoginScreen> {
       if (mounted) setState(() => _isLoading = false);
       return;
     }
-
-    if (!_formKey.currentState!.validate()) return;
-    setState(() => _isLoading = true);
 
     try {
       await FirebaseAuth.instance.signInWithEmailAndPassword(
@@ -380,7 +374,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       const Text(
-                        'admin/admin',
+                        'admin@gmail.com/admin123',
                         style: TextStyle(color: Color(0xFF22C55E), fontSize: 12),
                       ),
                       const SizedBox(width: 8),
