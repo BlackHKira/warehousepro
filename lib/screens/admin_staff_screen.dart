@@ -1,58 +1,176 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_core/firebase_core.dart';
+import '../providers/users_provider.dart';
+import '../providers/user_profile_provider.dart';
 import '../theme/app_theme.dart';
 
-class _Staff {
-  final String id, name, email, phone, role;
-  final bool fcmActive;
-  final int transactions, imports, exports;
-  const _Staff({required this.id, required this.name, required this.email, required this.phone, required this.role, required this.fcmActive, required this.transactions, required this.imports, required this.exports});
-}
-
-const _staffList = [
-  _Staff(id: 'u-1', name: 'Nguyễn Văn Minh', email: 'minh@whpro.com', phone: '0901 234 567', role: 'Thủ kho', fcmActive: true, transactions: 156, imports: 89, exports: 67),
-  _Staff(id: 'u-2', name: 'Trần Thị An', email: 'an@whpro.com', phone: '0902 345 678', role: 'Thủ kho', fcmActive: true, transactions: 132, imports: 71, exports: 61),
-  _Staff(id: 'u-3', name: 'Lê Văn Hoàng', email: 'hoang@whpro.com', phone: '0903 456 789', role: 'Kế toán', fcmActive: false, transactions: 98, imports: 45, exports: 53),
-  _Staff(id: 'u-4', name: 'Phạm Thị Lan', email: 'lan@whpro.com', phone: '0904 567 890', role: 'Quản lý', fcmActive: true, transactions: 45, imports: 20, exports: 25),
-  _Staff(id: 'u-5', name: 'Hoàng Văn Tùng', email: 'tung@whpro.com', phone: '0905 678 901', role: 'Thủ kho', fcmActive: true, transactions: 201, imports: 112, exports: 89),
-  _Staff(id: 'u-6', name: 'Ngô Thị Hoa', email: 'hoa@whpro.com', phone: '0906 789 012', role: 'Kế toán', fcmActive: false, transactions: 72, imports: 38, exports: 34),
-];
-
-class AdminStaffScreen extends StatefulWidget {
+class AdminStaffScreen extends ConsumerWidget {
   final bool embedded;
-  const AdminStaffScreen({super.key, this.embedded = false});
+  final bool readOnly;
+  const AdminStaffScreen({super.key, this.embedded = false, this.readOnly = false});
+
   @override
-  State<AdminStaffScreen> createState() => _AdminStaffScreenState();
+  Widget build(BuildContext context, WidgetRef ref) {
+    final usersAsync = ref.watch(usersProvider);
+    final profile = ref.watch(userProfileProvider);
+    final isAccountant = profile?.isAccountant ?? readOnly;
+
+    final body = usersAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => Center(child: Text('Lỗi: $e')),
+      data: (users) => _StaffBody(users: users, isReadOnly: isAccountant),
+    );
+
+    if (embedded) return body;
+    return Scaffold(appBar: AppBar(title: const Text('Nhân sự')), body: body);
+  }
 }
 
-class _AdminStaffScreenState extends State<AdminStaffScreen> {
-  String _filterRole = 'Tất cả';
+class _StaffBody extends StatefulWidget {
+  final List<Map<String, dynamic>> users;
+  final bool isReadOnly;
+  const _StaffBody({required this.users, required this.isReadOnly});
 
-  List<_Staff> get _filtered {
-    if (_filterRole == 'Tất cả') return _staffList;
-    return _staffList.where((s) => s.role == _filterRole).toList();
+  @override
+  State<_StaffBody> createState() => _StaffBodyState();
+}
+
+class _StaffBodyState extends State<_StaffBody> {
+  String _filterRole = 'Tất cả';
+  bool _showInactive = false;
+
+  FirebaseFirestore get _db => FirebaseFirestore.instanceFor(
+    app: Firebase.app(),
+    databaseId: 'warehousepro-db',
+  );
+
+  List<Map<String, dynamic>> get _filtered {
+    var list = widget.users.toList();
+    if (!_showInactive) {
+      list = list.where((u) => u['isActive'] as bool? ?? true).toList();
+    }
+    if (_filterRole != 'Tất cả') {
+      list = list.where((u) => u['role'] == _filterRole).toList();
+    }
+    return list;
+  }
+
+  Future<void> _toggleActive(Map<String, dynamic> user) async {
+    final uid = user['uid'] as String?;
+    if (uid == null) return;
+    final current = user['isActive'] as bool? ?? true;
+    final action = current ? 'vô hiệu hóa' : 'kích hoạt';
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('$action nhân viên?'),
+        content: Text('Bạn có chắc muốn $action "${user['name'] ?? 'N/A'}"?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Hủy')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: Text(current ? 'Vô hiệu hóa' : 'Kích hoạt')),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+    await _db.collection('users').doc(uid).update({'isActive': !current});
+    setState(() {});
+  }
+
+  Future<void> _editUser(Map<String, dynamic> user) async {
+    final uid = user['uid'] as String?;
+    if (uid == null) return;
+    final nameCtrl = TextEditingController(text: user['name'] as String? ?? '');
+    String role = user['role'] as String? ?? 'Thủ kho';
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Text('Sửa thông tin'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameCtrl,
+                decoration: const InputDecoration(labelText: 'Họ tên'),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                initialValue: role,
+                decoration: const InputDecoration(labelText: 'Vai trò'),
+                items: ['Thủ kho', 'Kế toán', 'Quản lý'].map((r) => DropdownMenuItem(value: r, child: Text(r))).toList(),
+                onChanged: (v) => setDialogState(() => role = v!),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Hủy')),
+            FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Lưu')),
+          ],
+        ),
+      ),
+    );
+    if (result != true) return;
+    final name = nameCtrl.text.trim();
+    if (name.isEmpty) return;
+    await _db.collection('users').doc(uid).update({'name': name, 'role': role});
+    setState(() {});
   }
 
   @override
   Widget build(BuildContext context) {
+    if (widget.users.isEmpty) {
+      return Center(child: Text('Chưa có nhân sự nào', style: TextStyle(color: AppColors.textMuted)));
+    }
+
+    final roles = widget.users
+        .map((u) => u['role'] as String? ?? '')
+        .where((r) => r.isNotEmpty)
+        .toSet().toList()..sort();
     final filtered = _filtered;
 
-    final body = Column(
+    return Column(
       children: [
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: Row(
-            children: [
-              const Text('Bộ lọc: ', style: TextStyle(fontSize: 13, color: AppColors.textMuted)),
-              ...['Tất cả', 'Thủ kho', 'Kế toán', 'Quản lý'].map((r) => Padding(
-                padding: const EdgeInsets.only(right: 6),
-                child: ChoiceChip(
-                  label: Text(r, style: const TextStyle(fontSize: 12)),
-                  selected: _filterRole == r,
-                  onSelected: (_) => setState(() => _filterRole = r),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                const Text('Bộ lọc: ', style: TextStyle(fontSize: 13, color: AppColors.textMuted)),
+                ChoiceChip(
+                  label: Text('Tất cả', style: TextStyle(fontSize: 12, color: _filterRole == 'Tất cả' ? Colors.white : AppColors.textPrimary)),
+                  selected: _filterRole == 'Tất cả',
+                  onSelected: (_) => setState(() => _filterRole = 'Tất cả'),
+                  selectedColor: Colors.blueGrey,
+                  backgroundColor: const Color(0xFFE8ECF4),
                   visualDensity: VisualDensity.compact,
                 ),
-              )),
-            ],
+                const SizedBox(width: 6),
+                ...roles.map((r) => Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: ChoiceChip(
+                    label: Text(r, style: TextStyle(fontSize: 12, color: _filterRole == r ? Colors.white : AppColors.textPrimary)),
+                    selected: _filterRole == r,
+                    onSelected: (_) => setState(() => _filterRole = r),
+                    selectedColor: _chipColor(r),
+                    backgroundColor: const Color(0xFFE8ECF4),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                )),
+                const SizedBox(width: 12),
+                ChoiceChip(
+                  label: Text('Đã nghỉ', style: TextStyle(fontSize: 12, color: _showInactive ? Colors.white : AppColors.textPrimary)),
+                  selected: _showInactive,
+                  onSelected: (_) => setState(() => _showInactive = !_showInactive),
+                  selectedColor: AppColors.red,
+                  backgroundColor: const Color(0xFFE8ECF4),
+                  visualDensity: VisualDensity.compact,
+                ),
+              ],
+            ),
           ),
         ),
         Expanded(
@@ -60,22 +178,63 @@ class _AdminStaffScreenState extends State<AdminStaffScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 12),
             itemCount: filtered.length,
             itemBuilder: (_, i) {
-              final s = filtered[i];
+              final u = filtered[i];
+              final name = u['name'] as String? ?? u['fullName'] as String? ?? 'N/A';
+              final email = u['email'] as String? ?? '';
+              final role = u['role'] as String? ?? '';
+              final isActive = u['isActive'] as bool? ?? true;
+
               return Card(
                 margin: const EdgeInsets.symmetric(vertical: 4),
-                child: ListTile(
-                  leading: CircleAvatar(backgroundColor: _roleColor(s.role).withValues(alpha: 0.1), child: Icon(Icons.person, color: _roleColor(s.role))),
-                  title: Row(
-                    children: [
-                      Text(s.name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-                      const SizedBox(width: 8),
-                      _RoleBadge(s.role),
-                    ],
+                child: Opacity(
+                  opacity: isActive ? 1.0 : 0.5,
+                  child: ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: _chipColor(role).withValues(alpha: 0.1),
+                      child: Icon(Icons.person, color: _chipColor(role)),
+                    ),
+                    title: Row(
+                      children: [
+                        Expanded(child: Text(name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14), overflow: TextOverflow.ellipsis)),
+                        const SizedBox(width: 8),
+                        _RoleBadge(role),
+                        if (!isActive) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(color: AppColors.red.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4)),
+                            child: const Text('Đã nghỉ', style: TextStyle(color: AppColors.red, fontSize: 9, fontWeight: FontWeight.w600)),
+                          ),
+                        ],
+                      ],
+                    ),
+                    subtitle: Text(email, style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                    trailing: widget.isReadOnly
+                        ? Container(
+                            width: 8, height: 8,
+                            decoration: BoxDecoration(color: isActive ? AppColors.green : AppColors.textMuted, shape: BoxShape.circle),
+                          )
+                        : PopupMenuButton<String>(
+                            icon: const Icon(Icons.more_vert, size: 20),
+                            onSelected: (v) async {
+                              if (v == 'edit') await _editUser(u);
+                              if (v == 'toggle') await _toggleActive(u);
+                            },
+                            itemBuilder: (_) => [
+                              const PopupMenuItem(value: 'edit', child: Row(children: [Icon(Icons.edit, size: 18), SizedBox(width: 8), Text('Sửa')])),
+                              PopupMenuItem(
+                                value: 'toggle',
+                                child: Row(
+                                  children: [
+                                    Icon(isActive ? Icons.block : Icons.check_circle, size: 18, color: isActive ? AppColors.red : AppColors.green),
+                                    const SizedBox(width: 8),
+                                    Text(isActive ? 'Vô hiệu hóa' : 'Kích hoạt'),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
                   ),
-                  subtitle: Text('${s.email} · ${s.transactions} GD', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
-                  trailing: s.fcmActive
-                      ? Container(width: 8, height: 8, decoration: BoxDecoration(color: AppColors.green, shape: BoxShape.circle))
-                      : Icon(Icons.circle, size: 8, color: AppColors.textMuted),
                 ),
               );
             },
@@ -83,17 +242,14 @@ class _AdminStaffScreenState extends State<AdminStaffScreen> {
         ),
       ],
     );
-
-    if (widget.embedded) return body;
-    return Scaffold(appBar: AppBar(title: const Text('Nhân sự')), body: body);
   }
 
-  Color _roleColor(String role) {
+  Color _chipColor(String role) {
     switch (role) {
       case 'Thủ kho': return AppColors.primary;
       case 'Kế toán': return AppColors.orange;
       case 'Quản lý': return Colors.purple;
-      default: return Colors.grey;
+      default: return Colors.blueGrey;
     }
   }
 }
@@ -101,6 +257,7 @@ class _AdminStaffScreenState extends State<AdminStaffScreen> {
 class _RoleBadge extends StatelessWidget {
   final String role;
   const _RoleBadge(this.role);
+
   @override
   Widget build(BuildContext context) {
     Color c;
@@ -108,7 +265,7 @@ class _RoleBadge extends StatelessWidget {
       case 'Thủ kho': c = AppColors.primary; break;
       case 'Kế toán': c = AppColors.orange; break;
       case 'Quản lý': c = Colors.purple; break;
-      default: c = Colors.grey;
+      default: c = Colors.blueGrey;
     }
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),

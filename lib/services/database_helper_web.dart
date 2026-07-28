@@ -52,6 +52,16 @@ class _WebDatabaseHelper extends DatabaseHelper {
   }
 
   @override
+  Future<void> updateTransactionStatus(int localId, String newStatus) async {
+    for (final entry in _store) {
+      if (entry['id'] == localId) {
+        entry['status'] = newStatus;
+        break;
+      }
+    }
+  }
+
+  @override
   Future<Map<String, dynamic>?> getByFirestoreId(String firestoreId) async {
     for (final entry in _store) {
       if (entry['firestoreId'] == firestoreId) {

@@ -11,7 +11,9 @@ import 'dashboard_screen.dart';
 import 'import_screen.dart';
 import 'export_screen.dart';
 import 'search_screen.dart';
+import 'bulk_scan_screen.dart';
 import 'login_screen.dart';
+import 'admin_dashboard_screen.dart';
 import 'admin_inventory_screen.dart';
 import 'admin_reports_screen.dart';
 import 'admin_staff_screen.dart';
@@ -265,15 +267,18 @@ const _staffTabs = [
   _TabDef(DashboardScreen(embedded: true), Icons.dashboard_outlined, Icons.dashboard, 'Kho'),
   _TabDef(ImportScreen(embedded: true), Icons.add_box_outlined, Icons.add_box, 'Nhập'),
   _TabDef(ExportScreen(embedded: true), Icons.outbox_outlined, Icons.outbox, 'Xuất'),
+  _TabDef(BulkScanScreen(embedded: true), Icons.qr_code_scanner_outlined, Icons.qr_code_scanner, 'Kiểm kê'),
   _TabDef(SearchScreen(embedded: true), Icons.search, Icons.search, 'Tra cứu'),
 ];
 
 const _accountantTabs = [
   _TabDef(AdminInventoryScreen(embedded: true), Icons.inventory_2_outlined, Icons.inventory_2, 'Tồn kho'),
   _TabDef(AdminReportsScreen(embedded: true), Icons.bar_chart_outlined, Icons.bar_chart, 'Báo cáo'),
+  _TabDef(AdminStaffScreen(embedded: true, readOnly: true), Icons.badge_outlined, Icons.badge, 'Nhân sự'),
 ];
 
 const _adminTabs = [
+  _TabDef(AdminDashboardScreen(embedded: true), Icons.dashboard_outlined, Icons.dashboard, 'Trang chủ'),
   _TabDef(AdminInventoryScreen(embedded: true), Icons.inventory_2_outlined, Icons.inventory_2, 'Tồn kho'),
   _TabDef(AdminReportsScreen(embedded: true), Icons.bar_chart_outlined, Icons.bar_chart, 'Báo cáo'),
   _TabDef(AdminStaffScreen(embedded: true), Icons.badge_outlined, Icons.badge, 'Nhân sự'),

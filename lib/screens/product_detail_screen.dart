@@ -71,7 +71,7 @@ class ProductDetailScreen extends ConsumerWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
-                      _stockChip(label: 'Tồn kho', value: '${product.stock}', bgColor: AppColors.primaryLight, textColor: AppColors.primary),
+                      _stockChip(label: 'Tồn kho', value: '${product.stockInCases} thùng', bgColor: AppColors.primaryLight, textColor: AppColors.primary),
                       _stockChip(label: 'Khả dụng', value: '$available', bgColor: AppColors.successLight, textColor: AppColors.successDark),
                       _stockChip(label: 'Chênh lệch', value: discrepancy >= 0 ? '+$discrepancy' : '$discrepancy', bgColor: AppColors.errorLight, textColor: AppColors.error),
                     ],
@@ -89,9 +89,11 @@ class ProductDetailScreen extends ConsumerWidget {
           _infoRow(label: 'Khu vực', value: product.zone),
           _infoRow(label: 'Vị trí', value: product.location),
           _infoRow(label: 'Đơn vị', value: product.unit),
-          _infoRow(label: 'Giá nhập', value: '${product.unitPrice.toStringAsFixed(0)}đ'),
-          _infoRow(label: 'Giá bán', value: '${product.exportPrice.toStringAsFixed(0)}đ'),
-          _infoRow(label: 'Ngưỡng tồn tối thiểu', value: '${product.minStock}'),
+          _infoRow(label: 'Quy đổi', value: '1 thùng = ${product.unitPerCase} ${product.unit}'),
+          _infoRow(label: 'Tồn kho', value: formatStockDetail(product.stock, product.unitPerCase)),
+          _infoRow(label: 'Giá nhập', value: '${product.unitPricePerCase.toStringAsFixed(0)}đ/thùng'),
+          _infoRow(label: 'Giá bán', value: '${product.exportPricePerCase.toStringAsFixed(0)}đ/thùng'),
+          _infoRow(label: 'Ngưỡng tồn', value: formatStockDetail(product.minStock, product.unitPerCase)),
           if (product.note.isNotEmpty) _infoRow(label: 'Ghi chú', value: product.note),
           const SizedBox(height: 16),
 
@@ -109,7 +111,7 @@ class ProductDetailScreen extends ConsumerWidget {
                 children: [
                   const Icon(Icons.warning_amber, color: AppColors.orange, size: 20),
                   const SizedBox(width: 8),
-                  Expanded(child: Text('Sản phẩm sắp hết hàng (tồn ${product.stock}, ngưỡng ${product.minStock})', style: const TextStyle(color: AppColors.orange, fontSize: 13))),
+                  Expanded(child: Text('Sản phẩm sắp hết hàng (tồn ${formatStockDetail(product.stock, product.unitPerCase)}, ngưỡng ${formatStockDetail(product.minStock, product.unitPerCase)})', style: const TextStyle(color: AppColors.orange, fontSize: 13))),
                 ],
               ),
             ),

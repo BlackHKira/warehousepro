@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import '../models/product.dart';
+import '../data/sample_products.dart';
 
 class ProductService {
   final _collection = FirebaseFirestore.instanceFor(
@@ -18,21 +19,29 @@ class ProductService {
 
   Future<List<Product>> getProducts() async {
     final snapshot = await _collection.orderBy('name').get();
-    return snapshot.docs
+    final list = snapshot.docs
         .map((doc) => Product.fromMap(doc.id, doc.data()))
         .toList();
+    if (list.isNotEmpty) return list;
+    return sampleProducts;
   }
 
   Future<Product?> getProduct(String id) async {
     final doc = await _collection.doc(id).get();
-    if (!doc.exists) return null;
+    if (!doc.exists) {
+      final fallback = sampleProducts.where((p) => p.id == id).firstOrNull;
+      if (fallback != null) return fallback;
+      return null;
+    }
     return Product.fromMap(doc.id, doc.data()!);
   }
 
   Future<Product?> getProductByBarcode(String barcode) async {
     final snapshot =
         await _collection.where('barcode', isEqualTo: barcode).limit(1).get();
-    if (snapshot.docs.isEmpty) return null;
+    if (snapshot.docs.isEmpty) {
+      return sampleProducts.where((p) => p.barcode == barcode).firstOrNull;
+    }
     final doc = snapshot.docs.first;
     return Product.fromMap(doc.id, doc.data());
   }
@@ -40,20 +49,30 @@ class ProductService {
   Future<List<Product>> searchByName(String query) async {
     if (query.isEmpty) return getProducts();
     final q = query.toLowerCase();
-    final snapshot = await _collection.get();
-    return snapshot.docs
-        .map((doc) => Product.fromMap(doc.id, doc.data()))
+    try {
+      final snapshot = await _collection.get();
+      final list = snapshot.docs
+          .map((doc) => Product.fromMap(doc.id, doc.data()))
+          .where((p) =>
+              p.name.toLowerCase().contains(q) || p.barcode.contains(query))
+          .toList();
+      if (list.isNotEmpty) return list;
+    } catch (_) {}
+    return sampleProducts
         .where((p) =>
             p.name.toLowerCase().contains(q) || p.barcode.contains(query))
         .toList();
   }
 
   Future<List<Product>> getByZone(String zone) async {
-    final snapshot =
-        await _collection.where('zone', isEqualTo: zone).orderBy('name').get();
-    return snapshot.docs
-        .map((doc) => Product.fromMap(doc.id, doc.data()))
-        .toList();
+    try {
+      final snapshot = await _collection.where('zone', isEqualTo: zone).orderBy('name').get();
+      final list = snapshot.docs
+          .map((doc) => Product.fromMap(doc.id, doc.data()))
+          .toList();
+      if (list.isNotEmpty) return list;
+    } catch (_) {}
+    return sampleProducts.where((p) => p.zone == zone).toList();
   }
 
   Future<void> addProduct(Product product) async {
@@ -78,10 +97,14 @@ class ProductService {
   }
 
   Future<List<Product>> getLowStockProducts() async {
-    final snapshot = await _collection.get();
-    return snapshot.docs
-        .map((doc) => Product.fromMap(doc.id, doc.data()))
-        .where((p) => p.isLowStock)
-        .toList();
+    try {
+      final snapshot = await _collection.get();
+      final list = snapshot.docs
+          .map((doc) => Product.fromMap(doc.id, doc.data()))
+          .where((p) => p.isLowStock)
+          .toList();
+      if (list.isNotEmpty) return list;
+    } catch (_) {}
+    return sampleProducts.where((p) => p.isLowStock).toList();
   }
 }
