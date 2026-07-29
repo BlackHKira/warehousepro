@@ -124,12 +124,14 @@ class WarehouseNotifier extends StateNotifier<WarehouseState> {
             'zone': data['zone'],
             'products': data['products'],
             'note': data['note'],
+            'status': data['status'],
             'syncStatus': 'synced',
             'createdAt': createdAt,
           });
         } else {
           allMaps.add({
             'id': doc.id,
+            'firestoreId': doc.id,
             'type': data['type'],
             'supplier': data['supplier'],
             'customer': data['customer'],
@@ -137,6 +139,7 @@ class WarehouseNotifier extends StateNotifier<WarehouseState> {
             'zone': data['zone'] ?? 'D',
             'products': data['products'] ?? [],
             'note': data['note'] ?? '',
+            'status': data['status'],
             'syncStatus': 'synced',
             'createdAt': ts?.toDate().toIso8601String() ?? syncTime,
           });
@@ -229,6 +232,28 @@ class WarehouseNotifier extends StateNotifier<WarehouseState> {
     );
   }
 
+  Future<bool> updateExportStatus(Map<String, dynamic> order, String newStatus) async {
+    try {
+      final localId = order['id'] as int?;
+      final firestoreId = order['firestoreId'] as String?;
+
+      if (localId != null) {
+        await _db.updateTransactionStatus(localId, newStatus);
+      }
+
+      if (firestoreId != null && firestoreId.isNotEmpty) {
+        await _firestore.transactions.doc(firestoreId).update({'status': newStatus});
+      }
+
+      final all = await _db.getTransactions(limit: 200);
+      _buildState(all);
+      return true;
+    } catch (e) {
+      state = state.copyWith(syncError: 'Lỗi cập nhật trạng thái: $e');
+      return false;
+    }
+  }
+
   Future<bool> _addTransaction(
     String type,
     int itemCount, {
@@ -240,6 +265,8 @@ class WarehouseNotifier extends StateNotifier<WarehouseState> {
   }) async {
     try {
       final now = DateTime.now();
+
+      final status = type == 'export' ? 'pending' : null;
 
       if (kIsWeb) {
         if (type == 'export') {
@@ -258,6 +285,7 @@ class WarehouseNotifier extends StateNotifier<WarehouseState> {
           'zone': zone,
           'products': products,
           'note': note,
+          'status': status,
           'createdAt': FieldValue.serverTimestamp(),
         });
 
@@ -279,6 +307,7 @@ class WarehouseNotifier extends StateNotifier<WarehouseState> {
           'zone': zone,
           'products': products,
           'note': note,
+          'status': status,
           'syncStatus': 'pending',
           'createdAt': now.toIso8601String(),
         };
@@ -296,7 +325,7 @@ class WarehouseNotifier extends StateNotifier<WarehouseState> {
 
   Future<void> syncData() async {
     if (kIsWeb) return;
-    if (state.isSyncing || state.pendingSync == 0) return;
+    if (state.isSyncing) return;
     state = state.copyWith(isSyncing: true, syncError: null);
 
     final connectivityResult = await _connectivity.checkConnectivity();
@@ -316,6 +345,7 @@ class WarehouseNotifier extends StateNotifier<WarehouseState> {
           'zone': entry['zone'] ?? 'D',
           'products': entry['products'] ?? [],
           'note': entry['note'] ?? '',
+          'status': entry['status'],
           'createdAt': FieldValue.serverTimestamp(),
         });
         final localId = entry['localId'] ?? entry['id'];
@@ -324,9 +354,8 @@ class WarehouseNotifier extends StateNotifier<WarehouseState> {
         }
       }
 
-      final all = await _db.getTransactions(limit: 200);
-      _buildState(all);
-      state = state.copyWith(isSyncing: false, syncError: null);
+      await _pullFromFirestore();
+      state = state.copyWith(isSyncing: false);
     } catch (e) {
       state = state.copyWith(isSyncing: false, syncError: 'Lỗi đồng bộ: $e');
     }

@@ -1,18 +1,54 @@
 import 'package:flutter/material.dart';
 
 class AppColors {
+  // Primary
   static const primary = Color(0xFF2563EB);
-  static const primaryLight = Color(0xFF3B82F6);
   static const primaryDark = Color(0xFF1D4ED8);
+  static const primaryLight = Color(0xFFDBEAFE);
+
+  // Success
+  static const success = Color(0xFF22C55E);
+  static const successLight = Color(0xFFDCFCE7);
+  static const successDark = Color(0xFF15803D);
+
+  // Warning
+  static const warning = Color(0xFFF59E0B);
+  static const warningLight = Color(0xFFFEF3C7);
+  static const warningDark = Color(0xFFB45309);
+
+  // Error
+  static const error = Color(0xFFEF4444);
+  static const errorLight = Color(0xFFFEE2E2);
+  static const errorDark = Color(0xFFB91C1C);
+
+  // Purple
+  static const purple = Color(0xFFA855F7);
+  static const purpleLight = Color(0xFFF3E8FF);
+
+  // Neutrals
+  static const background = Color(0xFFF8FAFC);
+  static const surface = Color(0xFFFFFFFF);
+  static const border = Color(0xFFE2E8F0);
+  static const textPrimary = Color(0xFF1E293B);
+  static const textSecondary = Color(0xFF64748B);
+  static const textMuted = Color(0xFF94A3B8);
+
+  // Legacy aliases (for backward compat)
   static const green = Color(0xFF22C55E);
   static const red = Color(0xFFEF4444);
   static const orange = Color(0xFFF59E0B);
-  static const background = Color(0xFFF3F4F6);
-  static const surface = Color(0xFFFFFFFF);
-  static const border = Color(0xFFE5E7EB);
-  static const textPrimary = Color(0xFF111827);
-  static const textSecondary = Color(0xFF6B7280);
-  static const textMuted = Color(0xFF9CA3AF);
+}
+
+String formatStock(int stock, int unitPerCase) {
+  if (unitPerCase <= 1) return '$stock cái';
+  final cases = stock ~/ unitPerCase;
+  return '$cases thùng';
+}
+
+String formatStockDetail(int stock, int unitPerCase) {
+  if (unitPerCase <= 1) return '$stock cái';
+  final cases = stock ~/ unitPerCase;
+  return '$cases thùng = $stock cái';
 }
 
 class AppTheme {
@@ -26,19 +62,19 @@ class AppTheme {
         onPrimary: Colors.white,
         secondary: AppColors.orange,
         onSecondary: Colors.white,
-        error: AppColors.red,
+        error: AppColors.error,
         onError: Colors.white,
         surface: AppColors.surface,
         onSurface: AppColors.textPrimary,
-        surfaceContainerHighest: const Color(0xFFF9FAFB),
+        surfaceContainerHighest: const Color(0xFFF8FAFC),
         onSurfaceVariant: AppColors.textSecondary,
         outline: AppColors.border,
-        primaryContainer: AppColors.primary.withValues(alpha: 0.1),
+        primaryContainer: AppColors.primaryLight,
         onPrimaryContainer: AppColors.primary,
-        secondaryContainer: AppColors.orange.withValues(alpha: 0.1),
-        onSecondaryContainer: AppColors.orange,
-        errorContainer: AppColors.red.withValues(alpha: 0.1),
-        onErrorContainer: AppColors.red,
+        secondaryContainer: AppColors.warningLight,
+        onSecondaryContainer: AppColors.warningDark,
+        errorContainer: AppColors.errorLight,
+        onErrorContainer: AppColors.errorDark,
       ),
       scaffoldBackgroundColor: AppColors.background,
       appBarTheme: const AppBarTheme(
@@ -56,13 +92,14 @@ class AppTheme {
         color: AppColors.surface,
         elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(16),
           side: const BorderSide(color: AppColors.border),
         ),
       ),
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: AppColors.surface,
-        indicatorColor: AppColors.primary.withValues(alpha: 0.1),
+        indicatorColor: AppColors.primaryLight,
+        height: 70,
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           final isSelected = states.contains(WidgetState.selected);
           return TextStyle(
@@ -83,38 +120,43 @@ class AppTheme {
         style: FilledButton.styleFrom(
           backgroundColor: AppColors.primary,
           foregroundColor: Colors.white,
+          elevation: 0,
+          shadowColor: AppColors.primary.withValues(alpha: 0.25),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(12),
           ),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: AppColors.primary,
+          foregroundColor: AppColors.textPrimary,
           side: const BorderSide(color: AppColors.border),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(12),
           ),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+        filled: true,
+        fillColor: AppColors.background,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.border),
+        ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: AppColors.border),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
         ),
-        filled: true,
-        fillColor: Colors.white,
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       ),
       dividerTheme: const DividerThemeData(color: AppColors.border, thickness: 1),
       chipTheme: ChipThemeData(
         backgroundColor: AppColors.surface,
-        selectedColor: AppColors.primary.withValues(alpha: 0.1),
+        selectedColor: AppColors.primaryLight,
         side: const BorderSide(color: AppColors.border),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         labelStyle: const TextStyle(fontSize: 13),
@@ -127,6 +169,17 @@ class AppTheme {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
+      ),
+      textTheme: const TextTheme(
+        headlineLarge: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+        headlineMedium: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+        titleLarge: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+        titleMedium: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+        bodyLarge: TextStyle(fontSize: 14, fontWeight: FontWeight.w400, color: AppColors.textPrimary),
+        bodyMedium: TextStyle(fontSize: 14, fontWeight: FontWeight.w400, color: AppColors.textPrimary),
+        labelLarge: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+        bodySmall: TextStyle(fontSize: 12, fontWeight: FontWeight.w400, color: AppColors.textSecondary),
+        labelSmall: TextStyle(fontSize: 12, fontWeight: FontWeight.w400, color: AppColors.textSecondary),
       ),
     );
   }

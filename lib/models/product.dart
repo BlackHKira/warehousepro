@@ -14,6 +14,7 @@ class Product {
   final double unitPrice;
   final double exportPrice;
   final int minStock;
+  final int unitPerCase;
   final String note;
   final DateTime? createdAt;
   final DateTime? updatedAt;
@@ -32,6 +33,7 @@ class Product {
     this.unitPrice = 0,
     this.exportPrice = 0,
     this.minStock = 10,
+    this.unitPerCase = 1,
     this.note = '',
     this.createdAt,
     this.updatedAt,
@@ -60,15 +62,16 @@ class Product {
       unitPrice: (map['unitPrice'] as num?)?.toDouble() ?? 0,
       exportPrice: (map['exportPrice'] as num?)?.toDouble() ?? 0,
       minStock: (map['minStock'] as num?)?.toInt() ?? 10,
+      unitPerCase: (map['unitPerCase'] as num?)?.toInt() ?? 1,
       note: map['note'] as String? ?? '',
       createdAt: map['createdAt'] != null
           ? (map['createdAt'] is String
-              ? DateTime.tryParse(map['createdAt'] as String)
+              ? DateTime.tryParse(map['createdAt'])
               : (map['createdAt'] as Timestamp?)?.toDate())
           : null,
       updatedAt: updatedAtRaw != null
           ? (updatedAtRaw is String
-              ? DateTime.tryParse(updatedAtRaw as String)
+              ? DateTime.tryParse(updatedAtRaw)
               : (updatedAtRaw as Timestamp?)?.toDate())
           : null,
     );
@@ -87,6 +90,7 @@ class Product {
         'unitPrice': unitPrice,
         'exportPrice': exportPrice,
         'minStock': minStock,
+        'unitPerCase': unitPerCase,
         'note': note,
         'createdAt': createdAt?.toIso8601String(),
         'updatedAt': updatedAt?.toIso8601String(),
@@ -94,4 +98,9 @@ class Product {
 
   bool get isLowStock => stock <= minStock;
   bool get isOutOfStock => stock == 0;
+
+  int get stockInCases => unitPerCase > 0 ? stock ~/ unitPerCase : 0;
+  int get stockRemainder => unitPerCase > 0 ? stock % unitPerCase : stock;
+  double get unitPricePerCase => unitPrice * unitPerCase;
+  double get exportPricePerCase => exportPrice * unitPerCase;
 }

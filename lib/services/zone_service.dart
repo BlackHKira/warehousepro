@@ -1,8 +1,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_core/firebase_core.dart';
 import '../models/zone.dart';
 
 class ZoneService {
-  final FirebaseFirestore _db = FirebaseFirestore.instance;
+  final FirebaseFirestore _db = FirebaseFirestore.instanceFor(
+    app: Firebase.app(),
+    databaseId: 'warehousepro-db',
+  );
 
   CollectionReference get _zones => _db.collection('zones');
 

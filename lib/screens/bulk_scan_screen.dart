@@ -6,7 +6,8 @@ import '../services/zone_service.dart' show ZoneService;
 import '../theme/app_theme.dart';
 
 class BulkScanScreen extends ConsumerStatefulWidget {
-  const BulkScanScreen({super.key});
+  final bool embedded;
+  const BulkScanScreen({super.key, this.embedded = false});
 
   @override
   ConsumerState<BulkScanScreen> createState() => _BulkScanScreenState();
@@ -29,12 +30,13 @@ class _BulkScanScreenState extends ConsumerState<BulkScanScreen> {
 
     for (final p in zoneProducts) {
       final actual = p.stock + (DateTime.now().millisecond % 5) - 2;
-      final status = actual == p.stock ? 'match' : (actual < p.stock ? 'shortage' : 'surplus');
-      results.add(_ScanResult(product: p.name, barcode: p.barcode, book: p.stock, actual: actual < 0 ? 0 : actual, status: status));
+      final rnd = DateTime.now().millisecond % 7;
+      final status = rnd == 6 ? 'error' : (actual == p.stock ? 'match' : (actual < p.stock ? 'shortage' : 'surplus'));
+      results.add(_ScanResult(product: p.name, barcode: p.barcode, book: p.stock, actual: actual < 0 ? 0 : actual, price: p.exportPrice.round(), status: status, unitPerCase: p.unitPerCase));
     }
 
     if (results.isEmpty) {
-      results.add(_ScanResult(product: '(Chưa có SP trong khu vực $_selectedZone)', barcode: '-', book: 0, actual: 0, status: 'match'));
+      results.add(_ScanResult(product: '(Chưa có SP trong khu vực $_selectedZone)', barcode: '-', book: 0, actual: 0, price: 0, status: 'match', unitPerCase: 1));
     }
 
     setState(() {
@@ -49,9 +51,7 @@ class _BulkScanScreenState extends ConsumerState<BulkScanScreen> {
   Widget build(BuildContext context) {
     final zones = ref.watch(zonesProvider).valueOrNull ?? ZoneService.defaultZones;
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Kiểm kê theo vị trí')),
-      body: Column(
+    final body = Column(
         children: [
           Container(
             padding: const EdgeInsets.all(16),
@@ -66,9 +66,11 @@ class _BulkScanScreenState extends ConsumerState<BulkScanScreen> {
                     children: zones.map((z) => Padding(
                       padding: const EdgeInsets.only(right: 8),
                       child: FilterChip(
-                        label: Text(z.label),
+                        label: Text(z.label, style: TextStyle(fontSize: 13, color: _selectedZone == z.code ? Colors.white : AppColors.textPrimary)),
                         selected: _selectedZone == z.code,
                         onSelected: (_) => setState(() => _selectedZone = z.code),
+                        selectedColor: AppColors.primary,
+                        backgroundColor: const Color(0xFFE8ECF4),
                       ),
                     )).toList(),
                   ),
@@ -163,24 +165,48 @@ class _BulkScanScreenState extends ConsumerState<BulkScanScreen> {
                       statusLabel = 'Thiếu ${r.book - r.actual}';
                       break;
                     case 'surplus':
-                      statusColor = AppColors.green;
+                      statusColor = AppColors.orange;
                       statusIcon = Icons.arrow_upward;
-                      statusLabel = 'Dư ${r.actual - r.book}';
+                      statusLabel = 'Thừa ${r.actual - r.book}';
+                      break;
+                    case 'error':
+                      statusColor = AppColors.red;
+                      statusIcon = Icons.error_outline;
+                      statusLabel = 'Lỗi';
                       break;
                     default:
                       statusColor = AppColors.orange;
                       statusIcon = Icons.help;
                       statusLabel = 'Mất tích';
                   }
+                  Color cardBg;
+                  Color cardText;
+                  switch (r.status) {
+                    case 'match':
+                      cardBg = AppColors.successLight;
+                      cardText = AppColors.successDark;
+                      break;
+                    case 'shortage':
+                      cardBg = AppColors.errorLight;
+                      cardText = AppColors.errorDark;
+                      break;
+                    case 'surplus':
+                      cardBg = AppColors.warningLight;
+                      cardText = AppColors.warningDark;
+                      break;
+                    default:
+                      cardBg = statusColor.withValues(alpha: 0.1);
+                      cardText = statusColor;
+                  }
                   return Card(
                     child: ListTile(
-                      leading: CircleAvatar(backgroundColor: statusColor.withValues(alpha: 0.1), child: Icon(statusIcon, color: statusColor, size: 22)),
+                      leading: CircleAvatar(backgroundColor: cardBg, child: Icon(statusIcon, color: cardText, size: 22)),
                       title: Text(r.product, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14)),
-                      subtitle: Text('Sổ: ${r.book} → Thực tế: ${r.actual}', style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                      subtitle: Text('${_formatPrice(r.price)} · Sổ: ${formatStock(r.book, r.unitPerCase)} → Thực tế: ${formatStock(r.actual, r.unitPerCase)}', style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
                       trailing: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
-                        child: Text(statusLabel, style: TextStyle(color: statusColor, fontSize: 11, fontWeight: FontWeight.w600)),
+                        decoration: BoxDecoration(color: cardBg, borderRadius: BorderRadius.circular(8)),
+                        child: Text(statusLabel, style: TextStyle(color: cardText, fontSize: 11, fontWeight: FontWeight.w600)),
                       ),
                     ),
                   );
@@ -201,15 +227,24 @@ class _BulkScanScreenState extends ConsumerState<BulkScanScreen> {
                 ),
               ),
             ),
-        ],
-      ),
-    );
+          ],
+        );
+      if (widget.embedded) return body;
+      return Scaffold(
+        appBar: AppBar(title: const Text('Kiểm kê')),
+        body: body,
+      );
   }
+}
+
+String _formatPrice(int price) {
+  if (price == 0) return '0 đ';
+  return '${(price / 1000).toStringAsFixed(0)}.${(price % 1000 ~/ 100)}k';
 }
 
 class _ScanResult {
   final String product, barcode;
-  final int book, actual;
+  final int book, actual, price, unitPerCase;
   final String status;
-  _ScanResult({required this.product, required this.barcode, required this.book, required this.actual, required this.status});
+  _ScanResult({required this.product, required this.barcode, required this.book, required this.actual, required this.price, required this.status, required this.unitPerCase});
 }

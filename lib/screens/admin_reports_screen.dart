@@ -48,7 +48,7 @@ class AdminReportsScreen extends ConsumerWidget {
                 leading: CircleAvatar(backgroundColor: AppColors.orange.withValues(alpha: 0.1), child: const Icon(Icons.warning_amber, color: AppColors.orange, size: 18)),
                 title: Text(p.name, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14)),
                 subtitle: Text('${p.zone} · ${p.location}', style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-                trailing: Text('${p.stock}', style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.red)),
+                trailing: Text(formatStockDetail(p.stock, p.unitPerCase), style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.red, fontSize: 12)),
               ),
             )),
           ],

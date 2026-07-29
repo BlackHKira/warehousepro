@@ -11,7 +11,7 @@ class _NativeDatabaseHelper extends DatabaseHelper {
   Future<Database> get database async {
     _db ??= await openDatabase(
       p.join(await getDatabasesPath(), 'warehousepro.db'),
-      version: 1,
+      version: 2,
       onCreate: (db, _) async {
         await db.execute('''
           CREATE TABLE stock_transactions (
@@ -23,11 +23,17 @@ class _NativeDatabaseHelper extends DatabaseHelper {
             zone TEXT,
             products TEXT,
             note TEXT,
+            status TEXT DEFAULT 'pending',
             syncStatus TEXT DEFAULT 'pending',
             firestoreId TEXT,
             createdAt TEXT
           )
         ''');
+      },
+      onUpgrade: (db, oldVersion, newVersion) async {
+        if (oldVersion < 2) {
+          await db.execute('ALTER TABLE stock_transactions ADD COLUMN status TEXT DEFAULT \'pending\'');
+        }
       },
     );
     return _db!;
@@ -76,6 +82,17 @@ class _NativeDatabaseHelper extends DatabaseHelper {
     await db.update(
       'stock_transactions',
       {'syncStatus': 'synced', 'firestoreId': firestoreId},
+      where: 'id = ?',
+      whereArgs: [localId],
+    );
+  }
+
+  @override
+  Future<void> updateTransactionStatus(int localId, String newStatus) async {
+    final db = await database;
+    await db.update(
+      'stock_transactions',
+      {'status': newStatus},
       where: 'id = ?',
       whereArgs: [localId],
     );

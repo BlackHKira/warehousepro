@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/user_profile_provider.dart';
 import '../providers/warehouse_provider.dart';
-import '../providers/selected_tab_provider.dart';
 import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
 import 'dashboard_screen.dart';
@@ -24,6 +23,8 @@ class MainShell extends ConsumerStatefulWidget {
 }
 
 class _MainShellState extends ConsumerState<MainShell> {
+  int _selectedIndex = 0;
+
   @override
   void initState() {
     super.initState();
@@ -45,32 +46,52 @@ class _MainShellState extends ConsumerState<MainShell> {
     final isAdmin = profile?.isAdmin ?? (widget.initialRole != 'Thủ kho');
 
     final tabs = isAdmin ? _adminTabs : _staffTabs;
-    final selectedIndex = ref.watch(selectedTabProvider);
-    final safeIndex = selectedIndex < tabs.length ? selectedIndex : 0;
+    final selectedIndex = _selectedIndex < tabs.length ? _selectedIndex : 0;
     final warehouse = ref.watch(warehouseProvider);
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(tabs[safeIndex].label),
+        title: Text(tabs[selectedIndex].label),
         actions: [
           if (warehouse.isSyncing)
             const Padding(
               padding: EdgeInsets.only(right: 8),
-              child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
             )
           else if (warehouse.pendingSync > 0)
             GestureDetector(
               onTap: () => ref.read(warehouseProvider.notifier).syncData(),
               child: Container(
                 margin: const EdgeInsets.only(right: 8),
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(color: AppColors.orange.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(16)),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.orange.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(16),
+                ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.sync_problem, size: 16, color: AppColors.orange),
+                    const Icon(
+                      Icons.sync_problem,
+                      size: 16,
+                      color: AppColors.orange,
+                    ),
                     const SizedBox(width: 4),
-                    Text('${warehouse.pendingSync}', style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.orange, fontSize: 13)),
+                    Text(
+                      '${warehouse.pendingSync}',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.orange,
+                        fontSize: 13,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -80,14 +101,27 @@ class _MainShellState extends ConsumerState<MainShell> {
               onTap: () => ref.read(warehouseProvider.notifier).syncData(),
               child: Container(
                 margin: const EdgeInsets.only(right: 8),
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(color: AppColors.green.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(16)),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.green.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(16),
+                ),
                 child: const Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(Icons.sync, size: 16, color: AppColors.green),
                     SizedBox(width: 4),
-                    Text('Đã sync', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.green, fontSize: 13)),
+                    Text(
+                      'Đã sync',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.green,
+                        fontSize: 13,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -106,7 +140,11 @@ class _MainShellState extends ConsumerState<MainShell> {
                       content: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          _infoRow(Icons.person, 'Họ tên', p?.name ?? 'Người dùng'),
+                          _infoRow(
+                            Icons.person,
+                            'Họ tên',
+                            p?.name ?? 'Người dùng',
+                          ),
                           const SizedBox(height: 8),
                           _infoRow(Icons.email, 'Email', p?.email ?? ''),
                           const SizedBox(height: 8),
@@ -158,12 +196,12 @@ class _MainShellState extends ConsumerState<MainShell> {
         ],
       ),
       body: IndexedStack(
-        index: safeIndex,
+        index: selectedIndex,
         children: tabs.map((t) => t.screen).toList(),
       ),
       bottomNavigationBar: NavigationBar(
-        selectedIndex: safeIndex,
-        onDestinationSelected: (i) => ref.read(selectedTabProvider.notifier).state = i,
+        selectedIndex: selectedIndex,
+        onDestinationSelected: (i) => setState(() => _selectedIndex = i),
         destinations: tabs
             .map(
               (t) => NavigationDestination(
@@ -187,17 +225,52 @@ class _TabDef {
 }
 
 const _staffTabs = [
-  _TabDef(DashboardScreen(embedded: true), Icons.dashboard_outlined, Icons.dashboard, 'Kho'),
-  _TabDef(ImportScreen(embedded: true), Icons.add_box_outlined, Icons.add_box, 'Nhập'),
-  _TabDef(ExportScreen(embedded: true), Icons.outbox_outlined, Icons.outbox, 'Xuất'),
+  _TabDef(
+    DashboardScreen(embedded: true),
+    Icons.dashboard_outlined,
+    Icons.dashboard,
+    'Kho',
+  ),
+  _TabDef(
+    ImportScreen(embedded: true),
+    Icons.add_box_outlined,
+    Icons.add_box,
+    'Nhập',
+  ),
+  _TabDef(
+    ExportScreen(embedded: true),
+    Icons.outbox_outlined,
+    Icons.outbox,
+    'Xuất',
+  ),
   _TabDef(SearchScreen(embedded: true), Icons.search, Icons.search, 'Tra cứu'),
 ];
 
 const _adminTabs = [
-  _TabDef(AdminInventoryScreen(embedded: true), Icons.inventory_2_outlined, Icons.inventory_2, 'Tồn kho'),
-  _TabDef(AdminReportsScreen(embedded: true), Icons.bar_chart_outlined, Icons.bar_chart, 'Báo cáo'),
-  _TabDef(AdminStaffScreen(embedded: true), Icons.badge_outlined, Icons.badge, 'Nhân sự'),
-  _TabDef(AdminZonesScreen(embedded: true), Icons.map_outlined, Icons.map, 'Khu vực'),
+  _TabDef(
+    AdminInventoryScreen(embedded: true),
+    Icons.inventory_2_outlined,
+    Icons.inventory_2,
+    'Tồn kho',
+  ),
+  _TabDef(
+    AdminReportsScreen(embedded: true),
+    Icons.bar_chart_outlined,
+    Icons.bar_chart,
+    'Báo cáo',
+  ),
+  _TabDef(
+    AdminStaffScreen(embedded: true),
+    Icons.badge_outlined,
+    Icons.badge,
+    'Nhân sự',
+  ),
+  _TabDef(
+    AdminZonesScreen(embedded: true),
+    Icons.map_outlined,
+    Icons.map,
+    'Khu vực',
+  ),
 ];
 
 Widget _infoRow(IconData icon, String label, String value) {
@@ -208,8 +281,14 @@ Widget _infoRow(IconData icon, String label, String value) {
       Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: TextStyle(fontSize: 11, color: AppColors.textMuted)),
-          Text(value, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+          Text(
+            label,
+            style: TextStyle(fontSize: 11, color: AppColors.textMuted),
+          ),
+          Text(
+            value,
+            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+          ),
         ],
       ),
     ],

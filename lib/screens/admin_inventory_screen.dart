@@ -132,8 +132,7 @@ class _InventoryBodyState extends State<_InventoryBody> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      Text('${p.stock}', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: p.isLowStock ? AppColors.red : AppColors.green)),
-                      Text(p.unit, style: const TextStyle(fontSize: 11, color: AppColors.textMuted)),
+                      Text(formatStock(p.stock, p.unitPerCase), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: p.isLowStock ? AppColors.red : AppColors.green)),
                     ],
                   ),
                 ),

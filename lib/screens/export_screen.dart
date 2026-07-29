@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/zone.dart';
 import '../providers/warehouse_provider.dart' show warehouseProvider;
 import '../providers/zone_provider.dart' show zonesProvider;
-import '../providers/selected_tab_provider.dart';
 import '../models/product.dart';
 import '../providers/product_provider.dart';
 import '../services/zone_service.dart' show ZoneService;
@@ -27,20 +26,76 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
       children: [
         Container(
           margin: const EdgeInsets.all(16),
-          decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(12)),
+          decoration: BoxDecoration(
+            color: AppColors.background,
+            borderRadius: BorderRadius.circular(12),
+          ),
           child: Row(
             children: [
-              Expanded(child: GestureDetector(onTap: () => setState(() => _tabIndex = 0), child: Container(padding: const EdgeInsets.symmetric(vertical: 14), decoration: BoxDecoration(color: _tabIndex == 0 ? AppColors.primary : Colors.transparent, borderRadius: BorderRadius.circular(12)), child: Text('Tạo phiếu xuất', textAlign: TextAlign.center, style: TextStyle(color: _tabIndex == 0 ? Colors.white : AppColors.textSecondary, fontWeight: FontWeight.w600))))),
-              Expanded(child: GestureDetector(onTap: () => setState(() => _tabIndex = 1), child: Container(padding: const EdgeInsets.symmetric(vertical: 14), decoration: BoxDecoration(color: _tabIndex == 1 ? AppColors.primary : Colors.transparent, borderRadius: BorderRadius.circular(12)), child: Text('Chọn lệnh xuất', textAlign: TextAlign.center, style: TextStyle(color: _tabIndex == 1 ? Colors.white : AppColors.textSecondary, fontWeight: FontWeight.w600))))),
+              Expanded(
+                child: GestureDetector(
+                  onTap: () => setState(() => _tabIndex = 0),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    decoration: BoxDecoration(
+                      color: _tabIndex == 0
+                          ? AppColors.primary
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      'Tạo phiếu xuất',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: _tabIndex == 0
+                            ? Colors.white
+                            : AppColors.textSecondary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: GestureDetector(
+                  onTap: () => setState(() => _tabIndex = 1),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    decoration: BoxDecoration(
+                      color: _tabIndex == 1
+                          ? AppColors.primary
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      'Chọn lệnh xuất',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: _tabIndex == 1
+                            ? Colors.white
+                            : AppColors.textSecondary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
             ],
           ),
         ),
-        Expanded(child: _tabIndex == 0 ? const _CreateExportTab() : const _PickingOrderTab()),
+        Expanded(
+          child: _tabIndex == 0
+              ? const _CreateExportTab()
+              : const _PickingOrderTab(),
+        ),
       ],
     );
 
     if (widget.embedded) return body;
-    return Scaffold(appBar: AppBar(title: const Text('Xuất kho')), body: body);
+    return Scaffold(
+      appBar: AppBar(title: const Text('Xuất kho')),
+      body: body,
+    );
   }
 }
 
@@ -61,7 +116,11 @@ class _CreateExportTabState extends ConsumerState<_CreateExportTab> {
   }
 
   void _addItem(String name, String barcode, int qty, [String zone = 'A1']) {
-    setState(() => _items.add(_ExportItem(name: name, barcode: barcode, qty: qty, zone: zone)));
+    setState(
+      () => _items.add(
+        _ExportItem(name: name, barcode: barcode, qty: qty, zone: zone),
+      ),
+    );
   }
 
   void _showScanDialog(List<Zone> zones) {
@@ -71,20 +130,29 @@ class _CreateExportTabState extends ConsumerState<_CreateExportTab> {
         title: const Text('Quét mã vạch'),
         content: Container(
           height: 200,
-          decoration: BoxDecoration(color: Colors.black, borderRadius: BorderRadius.circular(12)),
+          decoration: BoxDecoration(
+            color: Colors.black,
+            borderRadius: BorderRadius.circular(12),
+          ),
           child: const Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(Icons.qr_code_scanner, color: Colors.white, size: 64),
                 SizedBox(height: 12),
-                Text('Đưa mã vạch vào khung hình', style: TextStyle(color: Colors.white70)),
+                Text(
+                  'Đưa mã vạch vào khung hình',
+                  style: TextStyle(color: Colors.white70),
+                ),
               ],
             ),
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Huỷ')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Huỷ'),
+          ),
           FilledButton(
             onPressed: () {
               Navigator.pop(ctx);
@@ -95,7 +163,13 @@ class _CreateExportTabState extends ConsumerState<_CreateExportTab> {
               final qty = 1 + rng.nextInt(10);
               _addItem(product.name, product.barcode, qty, product.zone);
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Đã quét: ${product.name} — $qty ${product.unit}'), behavior: SnackBarBehavior.floating, duration: const Duration(seconds: 1)),
+                SnackBar(
+                  content: Text(
+                    'Đã quét: ${product.name} — $qty ${product.unit}',
+                  ),
+                  behavior: SnackBarBehavior.floating,
+                  duration: const Duration(seconds: 1),
+                ),
               );
             },
             child: const Text('Giả lập quét'),
@@ -130,12 +204,15 @@ class _CreateExportTabState extends ConsumerState<_CreateExportTab> {
                     suffixIcon: Icon(Icons.search),
                   ),
                   onTap: () async {
-                    final products = ref.read(productsProvider).valueOrNull ?? [];
+                    final products =
+                        ref.read(productsProvider).valueOrNull ?? [];
                     final selected = await showModalBottomSheet<Product>(
                       context: ctx,
                       isScrollControlled: true,
                       shape: const RoundedRectangleBorder(
-                        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                        borderRadius: BorderRadius.vertical(
+                          top: Radius.circular(16),
+                        ),
                       ),
                       builder: (_) => _ProductPickerSheet(products: products),
                     );
@@ -143,32 +220,70 @@ class _CreateExportTabState extends ConsumerState<_CreateExportTab> {
                       setDialogState(() {
                         nameCtrl.text = selected.name;
                         barcodeCtrl.text = selected.barcode;
-                        if (selected.zone.isNotEmpty) selectedZone = selected.zone;
+                        if (selected.zone.isNotEmpty)
+                          selectedZone = selected.zone;
                       });
                     }
                   },
                 ),
                 const SizedBox(height: 12),
-                TextField(controller: barcodeCtrl, decoration: const InputDecoration(labelText: 'Mã vạch', border: OutlineInputBorder())),
+                TextField(
+                  controller: barcodeCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Mã vạch',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
                 const SizedBox(height: 12),
-                TextField(controller: qtyCtrl, decoration: const InputDecoration(labelText: 'Số lượng', border: OutlineInputBorder()), keyboardType: TextInputType.number),
+                TextField(
+                  controller: qtyCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Số lượng',
+                    border: OutlineInputBorder(),
+                  ),
+                  keyboardType: TextInputType.number,
+                ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
                   initialValue: selectedZone,
-                  decoration: const InputDecoration(labelText: 'Khu vực', border: OutlineInputBorder()),
-                  items: zones.map((z) => DropdownMenuItem(value: z.code, child: Text(z.label, style: const TextStyle(fontSize: 14)))).toList(),
-                  onChanged: (v) => setDialogState(() => selectedZone = v ?? fallbackZone),
+                  decoration: const InputDecoration(
+                    labelText: 'Khu vực',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: zones
+                      .map(
+                        (z) => DropdownMenuItem(
+                          value: z.code,
+                          child: Text(
+                            z.label,
+                            style: const TextStyle(fontSize: 14),
+                          ),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (v) =>
+                      setDialogState(() => selectedZone = v ?? fallbackZone),
                 ),
               ],
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Huỷ')),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Huỷ'),
+            ),
             FilledButton(
               onPressed: () {
                 final qty = int.tryParse(qtyCtrl.text) ?? 1;
                 if (nameCtrl.text.trim().isEmpty) return;
-                _addItem(nameCtrl.text.trim(), barcodeCtrl.text.trim().isEmpty ? 'N/A' : barcodeCtrl.text.trim(), qty, selectedZone);
+                _addItem(
+                  nameCtrl.text.trim(),
+                  barcodeCtrl.text.trim().isEmpty
+                      ? 'N/A'
+                      : barcodeCtrl.text.trim(),
+                  qty,
+                  selectedZone,
+                );
                 Navigator.pop(ctx);
               },
               child: const Text('Thêm'),
@@ -186,32 +301,56 @@ class _CreateExportTabState extends ConsumerState<_CreateExportTab> {
     for (final item in _items) {
       zoneCounts[item.zone] = (zoneCounts[item.zone] ?? 0) + 1;
     }
-    final mainZone = zoneCounts.entries.reduce((a, b) => a.value >= b.value ? a : b).key;
-    final productsList = _items.map((item) => {'name': item.name, 'barcode': item.barcode, 'quantity': item.qty, 'zone': item.zone}).toList();
+    final mainZone = zoneCounts.entries
+        .reduce((a, b) => a.value >= b.value ? a : b)
+        .key;
+    final productsList = _items
+        .map(
+          (item) => {
+            'name': item.name,
+            'barcode': item.barcode,
+            'quantity': item.qty,
+            'zone': item.zone,
+          },
+        )
+        .toList();
 
-    final ok = await ref.read(warehouseProvider.notifier).addExport(
+    final ok = await ref
+        .read(warehouseProvider.notifier)
+        .addExport(
           totalQty,
-          _customerController.text.trim().isEmpty ? 'Khách lẻ' : _customerController.text.trim(),
+          _customerController.text.trim().isEmpty
+              ? 'Khách lẻ'
+              : _customerController.text.trim(),
           zone: mainZone,
           products: productsList,
         );
     if (!mounted) return;
     if (ok) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Đã lưu phiếu xuất — $totalQty sản phẩm'), behavior: SnackBarBehavior.floating, backgroundColor: AppColors.red),
+        SnackBar(
+          content: Text('Đã lưu phiếu xuất — $totalQty sản phẩm'),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: AppColors.red,
+        ),
       );
-      ref.read(selectedTabProvider.notifier).state = 0;
+      Navigator.pop(context);
     } else {
       final err = ref.read(warehouseProvider).syncError ?? 'Không xác định';
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Lỗi lưu: $err'), behavior: SnackBarBehavior.floating, backgroundColor: AppColors.red),
+        SnackBar(
+          content: Text('Lỗi lưu: $err'),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: AppColors.red,
+        ),
       );
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final zones = ref.watch(zonesProvider).valueOrNull ?? ZoneService.defaultZones;
+    final zones =
+        ref.watch(zonesProvider).valueOrNull ?? ZoneService.defaultZones;
 
     return ListView(
       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -222,9 +361,21 @@ class _CreateExportTabState extends ConsumerState<_CreateExportTab> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Phiếu xuất kho', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+                Text(
+                  'Phiếu xuất kho',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
                 const SizedBox(height: 12),
-                TextField(controller: _customerController, decoration: const InputDecoration(labelText: 'Khách hàng', prefixIcon: Icon(Icons.person), isDense: true)),
+                TextField(
+                  controller: _customerController,
+                  decoration: const InputDecoration(
+                    labelText: 'Khách hàng',
+                    prefixIcon: Icon(Icons.person),
+                    isDense: true,
+                  ),
+                ),
               ],
             ),
           ),
@@ -232,9 +383,33 @@ class _CreateExportTabState extends ConsumerState<_CreateExportTab> {
         const SizedBox(height: 12),
         Row(
           children: [
-            Expanded(child: OutlinedButton.icon(onPressed: () => _showScanDialog(zones), icon: const Icon(Icons.qr_code_scanner), label: const Text('Quét mã'), style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))))),
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: () => _showScanDialog(zones),
+                icon: const Icon(Icons.qr_code_scanner),
+                label: const Text('Quét mã'),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ),
             const SizedBox(width: 12),
-            Expanded(child: FilledButton.tonalIcon(onPressed: () => _showManualDialog(zones), icon: const Icon(Icons.edit), label: const Text('Nhập tay'), style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))))),
+            Expanded(
+              child: FilledButton.tonalIcon(
+                onPressed: () => _showManualDialog(zones),
+                icon: const Icon(Icons.edit),
+                label: const Text('Nhập tay'),
+                style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 8),
@@ -244,9 +419,16 @@ class _CreateExportTabState extends ConsumerState<_CreateExportTab> {
               padding: const EdgeInsets.all(32),
               child: Column(
                 children: [
-                  Icon(Icons.inventory_2_outlined, size: 48, color: AppColors.textMuted),
+                  Icon(
+                    Icons.inventory_2_outlined,
+                    size: 48,
+                    color: AppColors.textMuted,
+                  ),
                   const SizedBox(height: 8),
-                  Text('Chưa có sản phẩm nào', style: TextStyle(color: AppColors.textMuted)),
+                  Text(
+                    'Chưa có sản phẩm nào',
+                    style: TextStyle(color: AppColors.textMuted),
+                  ),
                 ],
               ),
             ),
@@ -257,33 +439,80 @@ class _CreateExportTabState extends ConsumerState<_CreateExportTab> {
           return Dismissible(
             key: Key('$i-${item.barcode}'),
             direction: DismissDirection.endToStart,
-            background: Container(alignment: Alignment.centerRight, padding: const EdgeInsets.only(right: 16), color: AppColors.red, child: const Icon(Icons.delete, color: Colors.white)),
+            background: Container(
+              alignment: Alignment.centerRight,
+              padding: const EdgeInsets.only(right: 16),
+              color: AppColors.red,
+              child: const Icon(Icons.delete, color: Colors.white),
+            ),
             onDismissed: (_) => setState(() => _items.removeAt(i)),
             child: Card(
               child: ListTile(
                 leading: Container(
-                  width: 44, height: 44,
-                  decoration: BoxDecoration(color: AppColors.red.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: AppColors.red.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                   child: const Icon(Icons.warning, color: AppColors.red),
                 ),
                 title: Row(
                   children: [
-                    Expanded(child: Text(item.name, style: const TextStyle(fontWeight: FontWeight.w500))),
+                    Expanded(
+                      child: Text(
+                        item.name,
+                        style: const TextStyle(fontWeight: FontWeight.w500),
+                      ),
+                    ),
                     const SizedBox(width: 6),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
-                      child: Text(item.zone, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.primary)),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        item.zone,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.primary,
+                        ),
+                      ),
                     ),
                   ],
                 ),
-                subtitle: Text(item.barcode, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                subtitle: Text(
+                  item.barcode,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    IconButton(icon: const Icon(Icons.remove_circle_outline, size: 20), onPressed: () => setState(() { if (item.qty > 1) item.qty--; })),
-                    Text('${item.qty}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                    IconButton(icon: const Icon(Icons.add_circle_outline, size: 20), onPressed: () => setState(() => item.qty++)),
+                    IconButton(
+                      icon: const Icon(Icons.remove_circle_outline, size: 20),
+                      onPressed: () => setState(() {
+                        if (item.qty > 1) item.qty--;
+                      }),
+                    ),
+                    Text(
+                      '${item.qty}',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.add_circle_outline, size: 20),
+                      onPressed: () => setState(() => item.qty++),
+                    ),
                   ],
                 ),
               ),
@@ -292,11 +521,14 @@ class _CreateExportTabState extends ConsumerState<_CreateExportTab> {
         }),
         const SizedBox(height: 16),
         SizedBox(
-          width: double.infinity, height: 50,
+          width: double.infinity,
+          height: 50,
           child: FilledButton.icon(
             onPressed: _items.isEmpty ? null : _save,
             icon: const Icon(Icons.save),
-            label: Text('Lưu phiếu xuất (${_items.length} SP, ${_items.fold(0, (s, e) => s + e.qty)} lượng)'),
+            label: Text(
+              'Lưu phiếu xuất (${_items.length} SP, ${_items.fold(0, (s, e) => s + e.qty)} lượng)',
+            ),
           ),
         ),
         const SizedBox(height: 40),
@@ -312,9 +544,27 @@ class _PickingOrderTab extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        _PickingOrderCard(id: 'PO-2024-001', customer: 'Cửa hàng Anh Tuấn', items: 5, status: 'pending', statusColor: AppColors.orange),
-        _PickingOrderCard(id: 'PO-2024-002', customer: 'Tạp hóa Cô Mai', items: 3, status: 'in_progress', statusColor: AppColors.primary),
-        _PickingOrderCard(id: 'PO-2024-003', customer: 'Đại lý Bia Hải', items: 8, status: 'completed', statusColor: AppColors.green),
+        _PickingOrderCard(
+          id: 'PO-2024-001',
+          customer: 'Cửa hàng Anh Tuấn',
+          items: 5,
+          status: 'pending',
+          statusColor: AppColors.orange,
+        ),
+        _PickingOrderCard(
+          id: 'PO-2024-002',
+          customer: 'Tạp hóa Cô Mai',
+          items: 3,
+          status: 'in_progress',
+          statusColor: AppColors.primary,
+        ),
+        _PickingOrderCard(
+          id: 'PO-2024-003',
+          customer: 'Đại lý Bia Hải',
+          items: 8,
+          status: 'completed',
+          statusColor: AppColors.green,
+        ),
       ],
     );
   }
@@ -324,7 +574,13 @@ class _PickingOrderCard extends StatelessWidget {
   final String id, customer, status;
   final int items;
   final Color statusColor;
-  const _PickingOrderCard({required this.id, required this.customer, required this.items, required this.status, required this.statusColor});
+  const _PickingOrderCard({
+    required this.id,
+    required this.customer,
+    required this.items,
+    required this.status,
+    required this.statusColor,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -341,25 +597,53 @@ class _PickingOrderCard extends StatelessWidget {
                 children: [
                   Text('Khách: $customer'),
                   const SizedBox(height: 12),
-                  const Text('1. Coca Cola 355ml — 24 thùng', style: TextStyle(fontSize: 13)),
-                  const Text('2. Pepsi 355ml — 12 thùng', style: TextStyle(fontSize: 13)),
-                  const Text('3. Sting đỏ — 6 thùng', style: TextStyle(fontSize: 13)),
+                  const Text(
+                    '1. Coca Cola 355ml — 24 thùng',
+                    style: TextStyle(fontSize: 13),
+                  ),
+                  const Text(
+                    '2. Pepsi 355ml — 12 thùng',
+                    style: TextStyle(fontSize: 13),
+                  ),
+                  const Text(
+                    '3. Sting đỏ — 6 thùng',
+                    style: TextStyle(fontSize: 13),
+                  ),
                 ],
               ),
               actions: [
-                TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Đóng')),
-                FilledButton(onPressed: () => Navigator.pop(ctx), child: const Text('Quét để xuất')),
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Đóng'),
+                ),
+                FilledButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Quét để xuất'),
+                ),
               ],
             ),
           );
         },
-        leading: CircleAvatar(backgroundColor: statusColor.withValues(alpha: 0.1), child: Icon(_statusIcon(), color: statusColor)),
+        leading: CircleAvatar(
+          backgroundColor: statusColor.withValues(alpha: 0.1),
+          child: Icon(_statusIcon(), color: statusColor),
+        ),
         title: Text(id, style: const TextStyle(fontWeight: FontWeight.w600)),
         subtitle: Text('$customer • $items sản phẩm'),
         trailing: Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
-          child: Text(_statusText(), style: TextStyle(color: statusColor, fontSize: 12, fontWeight: FontWeight.w600)),
+          decoration: BoxDecoration(
+            color: statusColor.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Text(
+            _statusText(),
+            style: TextStyle(
+              color: statusColor,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
         ),
       ),
     );
@@ -367,19 +651,27 @@ class _PickingOrderCard extends StatelessWidget {
 
   IconData _statusIcon() {
     switch (status) {
-      case 'pending': return Icons.hourglass_empty;
-      case 'in_progress': return Icons.sync;
-      case 'completed': return Icons.check_circle;
-      default: return Icons.help;
+      case 'pending':
+        return Icons.hourglass_empty;
+      case 'in_progress':
+        return Icons.sync;
+      case 'completed':
+        return Icons.check_circle;
+      default:
+        return Icons.help;
     }
   }
 
   String _statusText() {
     switch (status) {
-      case 'pending': return 'Chờ xử lý';
-      case 'in_progress': return 'Đang lấy';
-      case 'completed': return 'Hoàn tất';
-      default: return status;
+      case 'pending':
+        return 'Chờ xử lý';
+      case 'in_progress':
+        return 'Đang lấy';
+      case 'completed':
+        return 'Hoàn tất';
+      default:
+        return status;
     }
   }
 }
@@ -387,7 +679,12 @@ class _PickingOrderCard extends StatelessWidget {
 class _ExportItem {
   final String name, barcode, zone;
   int qty;
-  _ExportItem({required this.name, required this.barcode, required this.qty, this.zone = 'A1'});
+  _ExportItem({
+    required this.name,
+    required this.barcode,
+    required this.qty,
+    this.zone = 'A1',
+  });
 }
 
 class _ProductPickerSheet extends StatefulWidget {
@@ -411,10 +708,14 @@ class _ProductPickerSheetState extends State<_ProductPickerSheet> {
   void _filter(String q) {
     final query = q.toLowerCase();
     setState(() {
-      _filtered = widget.products.where((p) =>
-          p.name.toLowerCase().contains(query) ||
-          p.barcode.contains(query) ||
-          p.sku.toLowerCase().contains(query)).toList();
+      _filtered = widget.products
+          .where(
+            (p) =>
+                p.name.toLowerCase().contains(query) ||
+                p.barcode.contains(query) ||
+                p.sku.toLowerCase().contains(query),
+          )
+          .toList();
     });
   }
 
@@ -429,8 +730,12 @@ class _ProductPickerSheetState extends State<_ProductPickerSheet> {
         children: [
           Container(
             margin: const EdgeInsets.only(top: 8),
-            width: 40, height: 4,
-            decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2)),
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: Colors.grey.shade300,
+              borderRadius: BorderRadius.circular(2),
+            ),
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
@@ -439,10 +744,18 @@ class _ProductPickerSheetState extends State<_ProductPickerSheet> {
               decoration: InputDecoration(
                 hintText: 'Tìm sản phẩm...',
                 prefixIcon: const Icon(Icons.search),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
                 isDense: true,
                 suffixIcon: _searchCtrl.text.isNotEmpty
-                    ? IconButton(icon: const Icon(Icons.clear, size: 18), onPressed: () { _searchCtrl.clear(); _filter(''); })
+                    ? IconButton(
+                        icon: const Icon(Icons.clear, size: 18),
+                        onPressed: () {
+                          _searchCtrl.clear();
+                          _filter('');
+                        },
+                      )
                     : null,
               ),
               onChanged: _filter,
@@ -451,11 +764,21 @@ class _ProductPickerSheetState extends State<_ProductPickerSheet> {
           if (_filtered.isEmpty)
             Expanded(
               child: Center(
-                child: Column(mainAxisSize: MainAxisSize.min, children: [
-                  Icon(Icons.inventory_2_outlined, size: 48, color: AppColors.textMuted),
-                  const SizedBox(height: 8),
-                  Text('Không tìm thấy sản phẩm', style: TextStyle(color: AppColors.textMuted)),
-                ]),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.inventory_2_outlined,
+                      size: 48,
+                      color: AppColors.textMuted,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Không tìm thấy sản phẩm',
+                      style: TextStyle(color: AppColors.textMuted),
+                    ),
+                  ],
+                ),
               ),
             )
           else
@@ -467,7 +790,9 @@ class _ProductPickerSheetState extends State<_ProductPickerSheet> {
                   final p = _filtered[i];
                   return ListTile(
                     title: Text(p.name),
-                    subtitle: Text('${p.barcode} • ${p.zone} • Tồn: ${p.stock}'),
+                    subtitle: Text(
+                      '${p.barcode} • ${p.zone} • Tồn: ${p.stock}',
+                    ),
                     onTap: () => Navigator.pop(context, p),
                   );
                 },
