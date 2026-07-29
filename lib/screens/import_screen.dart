@@ -6,8 +6,9 @@ import '../providers/warehouse_provider.dart' show warehouseProvider;
 import '../providers/zone_provider.dart' show zonesProvider;
 import '../models/product.dart';
 import '../providers/product_provider.dart';
-import '../services/zone_service.dart' show ZoneService;
 import '../theme/app_theme.dart';
+import '../widgets/barcode_scanner_screen.dart';
+import '../services/zone_service.dart' show ZoneService;
 
 class ImportScreen extends ConsumerStatefulWidget {
   final bool embedded;
@@ -21,6 +22,7 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
   final _items = <_ImportItem>[];
   final _supplierController = TextEditingController();
   final _noteController = TextEditingController();
+  String _scanZone = '';
 
   @override
   void dispose() {
@@ -30,7 +32,14 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
   }
 
   void _addItem(String name, String barcode, int qty, [String zone = 'A1']) {
-    setState(() => _items.add(_ImportItem(name: name, barcode: barcode, qty: qty, zone: zone)));
+    setState(() {
+      final existing = _items.where((e) => e.barcode == barcode).firstOrNull;
+      if (existing != null) {
+        existing.qty += qty;
+      } else {
+        _items.add(_ImportItem(name: name, barcode: barcode, qty: qty, zone: zone));
+      }
+    });
   }
 
   void _showScanDialog(List<Zone> zones) {
@@ -54,7 +63,31 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Huỷ')),
-          FilledButton(
+          FilledButton.icon(
+            icon: const Icon(Icons.qr_code_scanner, size: 18),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              final barcode = await Navigator.push<String>(context, MaterialPageRoute(builder: (_) => const BarcodeScannerScreen()));
+              if (barcode == null || !mounted) return;
+              final product = await ref.read(productByBarcodeProvider(barcode).future);
+              if (!mounted) return;
+              if (product != null) {
+                final qty = 1;
+                _addItem(product.name, product.barcode, qty, _scanZone.isNotEmpty ? _scanZone : product.zone);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Đã quét: ${product.name} — $qty thùng'), behavior: SnackBarBehavior.floating, duration: const Duration(seconds: 1)),
+                );
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Không tìm thấy sản phẩm với mã: $barcode'), behavior: SnackBarBehavior.floating, backgroundColor: AppColors.red),
+                );
+              }
+            },
+            label: const Text('Quét camera'),
+          ),
+          const SizedBox(height: 8),
+          TextButton.icon(
+            icon: const Icon(Icons.shuffle, size: 18),
             onPressed: () {
               Navigator.pop(ctx);
               final rng = Random();
@@ -62,12 +95,12 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
               if (products.isEmpty) return;
               final product = products[rng.nextInt(products.length)];
               final qty = 1 + rng.nextInt(10);
-              _addItem(product.name, product.barcode, qty, product.zone);
+              _addItem(product.name, product.barcode, qty, _scanZone.isNotEmpty ? _scanZone : product.zone);
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Đã quét: ${product.name} — $qty ${product.unit}'), behavior: SnackBarBehavior.floating, duration: const Duration(seconds: 1)),
+                SnackBar(content: Text('Đã quét: ${product.name} — $qty thùng'), behavior: SnackBarBehavior.floating, duration: const Duration(seconds: 1)),
               );
             },
-            child: const Text('Giả lập quét'),
+            label: const Text('Giả lập quét'),
           ),
         ],
       ),
@@ -78,7 +111,7 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
     final nameCtrl = TextEditingController();
     final barcodeCtrl = TextEditingController();
     final qtyCtrl = TextEditingController(text: '1');
-    final fallbackZone = zones.isNotEmpty ? zones.first.code : 'A1';
+    final fallbackZone = _scanZone.isNotEmpty && zones.any((z) => z.code == _scanZone) ? _scanZone : (zones.isNotEmpty ? zones.first.code : 'A1');
     String selectedZone = fallbackZone;
 
     showDialog(
@@ -207,7 +240,32 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
             ),
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            child: Row(
+              children: [
+                Text('Khu vực nhập: ', style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: DropdownButtonFormField<String>(
+                    initialValue: _scanZone.isNotEmpty && zones.any((z) => z.code == _scanZone) ? _scanZone : null,
+                    isDense: true,
+                    decoration: const InputDecoration(
+                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      border: OutlineInputBorder(),
+                    ),
+                    hint: const Text('Chọn khu vực', style: TextStyle(fontSize: 13)),
+                    items: zones.map((z) => DropdownMenuItem(value: z.code, child: Text(z.label, style: const TextStyle(fontSize: 13)))).toList(),
+                    onChanged: (v) => setState(() => _scanZone = v ?? ''),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
         Row(
           children: [
             Expanded(child: OutlinedButton.icon(onPressed: () => _showScanDialog(zones), icon: const Icon(Icons.qr_code_scanner), label: const Text('Quét mã'), style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), side: const BorderSide(color: AppColors.primary), foregroundColor: AppColors.primary).copyWith(elevation: ButtonStyleButton.allOrNull(0), shadowColor: ButtonStyleButton.allOrNull(AppColors.primary.withValues(alpha: 0.25))))),
@@ -249,10 +307,25 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
                   children: [
                     Expanded(child: Text(item.name, style: const TextStyle(fontWeight: FontWeight.w500))),
                     const SizedBox(width: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
-                      child: Text(item.zone, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.primary)),
+                    PopupMenuButton<String>(
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(item.zone, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.primary)),
+                            Icon(Icons.arrow_drop_down, size: 14, color: AppColors.primary),
+                          ],
+                        ),
+                      ),
+                      onSelected: (v) => setState(() => item.zone = v),
+                      itemBuilder: (_) => zones.map((z) => PopupMenuItem(
+                        value: z.code,
+                        child: Text('${z.code} — ${z.label}', style: const TextStyle(fontSize: 13)),
+                      )).toList(),
                     ),
                   ],
                 ),
@@ -263,6 +336,8 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
                     IconButton(icon: const Icon(Icons.remove_circle_outline, size: 20), onPressed: () => setState(() { if (item.qty > 1) item.qty--; })),
                     Text('${item.qty}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                     IconButton(icon: const Icon(Icons.add_circle_outline, size: 20), onPressed: () => setState(() => item.qty++)),
+                    const SizedBox(width: 4),
+                    IconButton(icon: Icon(Icons.delete_outline, size: 20, color: AppColors.red), onPressed: () => setState(() => _items.removeAt(i))),
                   ],
                 ),
               ),
@@ -293,7 +368,8 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
 }
 
 class _ImportItem {
-  final String name, barcode, zone;
+  final String name, barcode;
+  String zone;
   int qty;
   _ImportItem({required this.name, required this.barcode, required this.qty, this.zone = 'A1'});
 }
@@ -375,7 +451,7 @@ class _ProductPickerSheetState extends State<_ProductPickerSheet> {
                   final p = _filtered[i];
                   return ListTile(
                     title: Text(p.name),
-                    subtitle: Text('${p.barcode} • ${p.zone} • Tồn: ${p.stock}'),
+                    subtitle: Text('${p.barcode} • ${p.zone} • Tồn: ${formatStock(p.stock, p.unitPerCase)}'),
                     onTap: () => Navigator.pop(context, p),
                   );
                 },

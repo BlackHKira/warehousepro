@@ -3,7 +3,7 @@ import '../models/zone.dart';
 import '../services/zone_service.dart';
 
 final zoneServiceProvider = Provider<ZoneService>(
-  (ref) => ZoneService()..seedDefaultZones(),
+  (ref) => ZoneService(),
 );
 
 final zonesProvider = StreamProvider<List<Zone>>((ref) {

@@ -39,6 +39,18 @@ class AppColors {
   static const orange = Color(0xFFF59E0B);
 }
 
+String formatStock(int stock, int unitPerCase) {
+  if (unitPerCase <= 1) return '$stock cái';
+  final cases = stock ~/ unitPerCase;
+  return '$cases thùng';
+}
+
+String formatStockDetail(int stock, int unitPerCase) {
+  if (unitPerCase <= 1) return '$stock cái';
+  final cases = stock ~/ unitPerCase;
+  return '$cases thùng = $stock cái';
+}
+
 class AppTheme {
   static ThemeData light() {
     return ThemeData(

@@ -122,6 +122,7 @@ class WarehouseNotifier extends StateNotifier<WarehouseState> {
             'zone': data['zone'],
             'products': data['products'],
             'note': data['note'],
+            'status': data['status'],
             'syncStatus': 'synced',
             'createdAt': createdAt,
           });
@@ -135,6 +136,7 @@ class WarehouseNotifier extends StateNotifier<WarehouseState> {
             'zone': data['zone'] ?? 'D',
             'products': data['products'] ?? [],
             'note': data['note'] ?? '',
+            'status': data['status'],
             'syncStatus': 'synced',
             'createdAt': ts?.toDate().toIso8601String() ?? syncTime,
           });
@@ -227,6 +229,28 @@ class WarehouseNotifier extends StateNotifier<WarehouseState> {
     );
   }
 
+  Future<bool> updateExportStatus(Map<String, dynamic> order, String newStatus) async {
+    try {
+      final localId = order['id'] as int?;
+      final firestoreId = order['firestoreId'] as String?;
+
+      if (localId != null) {
+        await _db.updateTransactionStatus(localId, newStatus);
+      }
+
+      if (firestoreId != null && firestoreId.isNotEmpty) {
+        await _firestore.transactions.doc(firestoreId).update({'status': newStatus});
+      }
+
+      final all = await _db.getTransactions(limit: 200);
+      _buildState(all);
+      return true;
+    } catch (e) {
+      state = state.copyWith(syncError: 'Lỗi cập nhật trạng thái: $e');
+      return false;
+    }
+  }
+
   Future<bool> _addTransaction(
     String type,
     int itemCount, {
@@ -239,6 +263,8 @@ class WarehouseNotifier extends StateNotifier<WarehouseState> {
     try {
       final now = DateTime.now();
 
+      final status = type == 'export' ? 'pending' : null;
+
       if (kIsWeb) {
         await _firestore.transactions.add({
           'type': type,
@@ -248,6 +274,7 @@ class WarehouseNotifier extends StateNotifier<WarehouseState> {
           'zone': zone,
           'products': products,
           'note': note,
+          'status': status,
           'createdAt': FieldValue.serverTimestamp(),
         });
         await _pullFromFirestore();
@@ -260,6 +287,7 @@ class WarehouseNotifier extends StateNotifier<WarehouseState> {
           'zone': zone,
           'products': products,
           'note': note,
+          'status': status,
           'syncStatus': 'pending',
           'createdAt': now.toIso8601String(),
         };
@@ -297,6 +325,7 @@ class WarehouseNotifier extends StateNotifier<WarehouseState> {
           'zone': entry['zone'] ?? 'D',
           'products': entry['products'] ?? [],
           'note': entry['note'] ?? '',
+          'status': entry['status'],
           'createdAt': FieldValue.serverTimestamp(),
         });
         final localId = entry['localId'] ?? entry['id'];
