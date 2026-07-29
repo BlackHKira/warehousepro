@@ -4,6 +4,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/database_helper.dart';
 import '../services/firestore_service.dart';
+import '../services/product_service.dart';
 
 class WarehouseState {
   final int totalProducts;
@@ -55,6 +56,7 @@ class WarehouseState {
 
 class WarehouseNotifier extends StateNotifier<WarehouseState> {
   final FirestoreService _firestore = FirestoreService();
+  final ProductService _productService = ProductService();
   final DatabaseHelper _db = DatabaseHelper.instance;
   final Connectivity _connectivity = Connectivity();
 
@@ -240,6 +242,14 @@ class WarehouseNotifier extends StateNotifier<WarehouseState> {
       final now = DateTime.now();
 
       if (kIsWeb) {
+        if (type == 'export') {
+          final stockError = await _productService.checkExportStock(products);
+          if (stockError != null) {
+            state = state.copyWith(syncError: stockError);
+            return false;
+          }
+        }
+
         await _firestore.transactions.add({
           'type': type,
           'supplier': type == 'import' ? supplier : null,
@@ -250,6 +260,15 @@ class WarehouseNotifier extends StateNotifier<WarehouseState> {
           'note': note,
           'createdAt': FieldValue.serverTimestamp(),
         });
+
+        for (final item in products) {
+          final barcode = item['barcode'] as String? ?? '';
+          final qty = (item['quantity'] as num?)?.toInt() ?? 0;
+          if (barcode.isEmpty || qty == 0) continue;
+          final delta = type == 'import' ? qty : -qty;
+          await _productService.updateStockByBarcode(barcode, delta);
+        }
+
         await _pullFromFirestore();
       } else {
         final entry = {

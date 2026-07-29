@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/zone.dart';
 import '../providers/warehouse_provider.dart' show warehouseProvider;
 import '../providers/zone_provider.dart' show zonesProvider;
+import '../providers/selected_tab_provider.dart';
 import '../models/product.dart';
 import '../providers/product_provider.dart';
 import '../services/zone_service.dart' show ZoneService;
@@ -170,7 +171,7 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Đã lưu phiếu nhập — $totalQty sản phẩm'), behavior: SnackBarBehavior.floating, backgroundColor: AppColors.green),
       );
-      Navigator.pop(context);
+      ref.read(selectedTabProvider.notifier).state = 0;
     } else {
       final err = ref.read(warehouseProvider).syncError ?? 'Không xác định';
       ScaffoldMessenger.of(context).showSnackBar(

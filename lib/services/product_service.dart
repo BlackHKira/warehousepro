@@ -84,4 +84,34 @@ class ProductService {
         .where((p) => p.isLowStock)
         .toList();
   }
+
+  Future<void> updateStockByBarcode(String barcode, int delta) async {
+    final snapshot = await _collection
+        .where('barcode', isEqualTo: barcode)
+        .limit(1)
+        .get();
+    if (snapshot.docs.isEmpty) return;
+    final doc = snapshot.docs.first;
+    await doc.reference.update({
+      'stock': FieldValue.increment(delta),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Future<String?> checkExportStock(List<Map<String, dynamic>> products) async {
+    final errors = <String>[];
+    for (final item in products) {
+      final barcode = item['barcode'] as String? ?? '';
+      final name = item['name'] as String? ?? '';
+      final qty = (item['quantity'] as num?)?.toInt() ?? 0;
+      if (barcode.isEmpty || qty == 0) continue;
+      final product = await getProductByBarcode(barcode);
+      if (product == null) {
+        errors.add('$name: không tìm thấy trong kho');
+      } else if (product.stock < qty) {
+        errors.add('${product.name}: chỉ còn ${product.stock} (cần $qty)');
+      }
+    }
+    return errors.isEmpty ? null : errors.join('\n');
+  }
 }
