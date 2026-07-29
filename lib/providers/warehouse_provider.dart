@@ -129,6 +129,7 @@ class WarehouseNotifier extends StateNotifier<WarehouseState> {
         } else {
           allMaps.add({
             'id': doc.id,
+            'firestoreId': doc.id,
             'type': data['type'],
             'supplier': data['supplier'],
             'customer': data['customer'],
@@ -305,7 +306,7 @@ class WarehouseNotifier extends StateNotifier<WarehouseState> {
 
   Future<void> syncData() async {
     if (kIsWeb) return;
-    if (state.isSyncing || state.pendingSync == 0) return;
+    if (state.isSyncing) return;
     state = state.copyWith(isSyncing: true, syncError: null);
 
     final connectivityResult = await _connectivity.checkConnectivity();
@@ -334,9 +335,8 @@ class WarehouseNotifier extends StateNotifier<WarehouseState> {
         }
       }
 
-      final all = await _db.getTransactions(limit: 200);
-      _buildState(all);
-      state = state.copyWith(isSyncing: false, syncError: null);
+      await _pullFromFirestore();
+      state = state.copyWith(isSyncing: false);
     } catch (e) {
       state = state.copyWith(isSyncing: false, syncError: 'Lỗi đồng bộ: $e');
     }

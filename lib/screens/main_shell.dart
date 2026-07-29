@@ -13,7 +13,6 @@ import 'export_screen.dart';
 import 'search_screen.dart';
 import 'bulk_scan_screen.dart';
 import 'login_screen.dart';
-import 'admin_dashboard_screen.dart';
 import 'admin_inventory_screen.dart';
 import 'admin_reports_screen.dart';
 import 'admin_staff_screen.dart';
@@ -98,114 +97,118 @@ class _MainShellState extends ConsumerState<MainShell> {
     final selectedIndex = _selectedIndex < tabs.length ? _selectedIndex : 0;
     final warehouse = ref.watch(warehouseProvider);
 
+    final showAppBar = selectedIndex != 0;
+
     return Scaffold(
-      appBar: AppBar(
-        title: Text(tabs[selectedIndex].label),
-        actions: [
-          if (warehouse.isSyncing)
-            const Padding(
-              padding: EdgeInsets.only(right: 8),
-              child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
-            )
-          else if (warehouse.pendingSync > 0)
-            GestureDetector(
-              onTap: () => ref.read(warehouseProvider.notifier).syncData(),
-              child: Container(
-                margin: const EdgeInsets.only(right: 8),
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(color: AppColors.orange.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(16)),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.sync_problem, size: 16, color: AppColors.orange),
-                    const SizedBox(width: 4),
-                    Text('${warehouse.pendingSync}', style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.orange, fontSize: 13)),
-                  ],
-                ),
-              ),
-            )
-          else
-            GestureDetector(
-              onTap: () => ref.read(warehouseProvider.notifier).syncData(),
-              child: Container(
-                margin: const EdgeInsets.only(right: 8),
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(color: AppColors.green.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(16)),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.sync, size: 16, color: AppColors.green),
-                    SizedBox(width: 4),
-                    Text('Đã sync', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.green, fontSize: 13)),
-                  ],
-                ),
-              ),
-            ),
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.person_outline),
-            onSelected: (value) async {
-              switch (value) {
-                case 'info':
-                  final p = ref.read(userProfileProvider);
-                  if (!context.mounted) return;
-                  showDialog(
-                    context: context,
-                    builder: (ctx) => AlertDialog(
-                      title: const Text('Thông tin tài khoản'),
-                      content: Column(
+      appBar: showAppBar
+          ? AppBar(
+              title: Text(tabs[selectedIndex].label),
+              actions: [
+                if (warehouse.isSyncing)
+                  const Padding(
+                    padding: EdgeInsets.only(right: 8),
+                    child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
+                  )
+                else if (warehouse.pendingSync > 0)
+                  GestureDetector(
+                    onTap: () => ref.read(warehouseProvider.notifier).syncData(),
+                    child: Container(
+                      margin: const EdgeInsets.only(right: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(color: AppColors.orange.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(16)),
+                      child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          _infoRow(Icons.person, 'Họ tên', p?.name ?? 'Người dùng'),
-                          const SizedBox(height: 8),
-                          _infoRow(Icons.email, 'Email', p?.email ?? ''),
-                          const SizedBox(height: 8),
-                          _infoRow(Icons.badge, 'Vai trò', p?.rawRole ?? ''),
+                          const Icon(Icons.sync_problem, size: 16, color: AppColors.orange),
+                          const SizedBox(width: 4),
+                          Text('${warehouse.pendingSync}', style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.orange, fontSize: 13)),
                         ],
                       ),
-                      actions: [
-                        FilledButton(
-                          onPressed: () => Navigator.pop(ctx),
-                          child: const Text('Đóng'),
-                        ),
-                      ],
                     ),
-                  );
-                case 'logout':
-                  await AuthService().signOut();
-                  if (!context.mounted) return;
-                  ref.read(userProfileProvider.notifier).state = null;
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(builder: (_) => const LoginScreen()),
-                  );
-              }
-            },
-            itemBuilder: (context) => [
-              const PopupMenuItem<String>(
-                value: 'info',
-                child: Row(
-                  children: [
-                    Icon(Icons.person_outline, size: 20),
-                    SizedBox(width: 10),
-                    Text('Thông tin'),
+                  )
+                else
+                  GestureDetector(
+                    onTap: () => ref.read(warehouseProvider.notifier).syncData(),
+                    child: Container(
+                      margin: const EdgeInsets.only(right: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(color: AppColors.green.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(16)),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.sync, size: 16, color: AppColors.green),
+                          SizedBox(width: 4),
+                          Text('Đã sync', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.green, fontSize: 13)),
+                        ],
+                      ),
+                    ),
+                  ),
+                PopupMenuButton<String>(
+                  icon: const Icon(Icons.person_outline),
+                  onSelected: (value) async {
+                    switch (value) {
+                      case 'info':
+                        final p = ref.read(userProfileProvider);
+                        if (!context.mounted) return;
+                        showDialog(
+                          context: context,
+                          builder: (ctx) => AlertDialog(
+                            title: const Text('Thông tin tài khoản'),
+                            content: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                _infoRow(Icons.person, 'Họ tên', p?.name ?? 'Người dùng'),
+                                const SizedBox(height: 8),
+                                _infoRow(Icons.email, 'Email', p?.email ?? ''),
+                                const SizedBox(height: 8),
+                                _infoRow(Icons.badge, 'Vai trò', p?.rawRole ?? ''),
+                              ],
+                            ),
+                            actions: [
+                              FilledButton(
+                                onPressed: () => Navigator.pop(ctx),
+                                child: const Text('Đóng'),
+                              ),
+                            ],
+                          ),
+                        );
+                      case 'logout':
+                        await AuthService().signOut();
+                        if (!context.mounted) return;
+                        ref.read(userProfileProvider.notifier).state = null;
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(builder: (_) => const LoginScreen()),
+                        );
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    const PopupMenuItem<String>(
+                      value: 'info',
+                      child: Row(
+                        children: [
+                          Icon(Icons.person_outline, size: 20),
+                          SizedBox(width: 10),
+                          Text('Thông tin'),
+                        ],
+                      ),
+                    ),
+                    const PopupMenuDivider(),
+                    const PopupMenuItem<String>(
+                      value: 'logout',
+                      child: Row(
+                        children: [
+                          Icon(Icons.logout, size: 20, color: AppColors.red),
+                          SizedBox(width: 10),
+                          Text('Đăng xuất', style: TextStyle(color: AppColors.red)),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
-              ),
-              const PopupMenuDivider(),
-              const PopupMenuItem<String>(
-                value: 'logout',
-                child: Row(
-                  children: [
-                    Icon(Icons.logout, size: 20, color: AppColors.red),
-                    SizedBox(width: 10),
-                    Text('Đăng xuất', style: TextStyle(color: AppColors.red)),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
+              ],
+            )
+          : null,
       body: IndexedStack(
         index: selectedIndex,
         children: tabs.map((t) => t.screen).toList(),
@@ -278,7 +281,7 @@ const _accountantTabs = [
 ];
 
 const _adminTabs = [
-  _TabDef(AdminDashboardScreen(embedded: true), Icons.dashboard_outlined, Icons.dashboard, 'Trang chủ'),
+  _TabDef(DashboardScreen(embedded: true), Icons.dashboard_outlined, Icons.dashboard, 'Trang chủ'),
   _TabDef(AdminInventoryScreen(embedded: true), Icons.inventory_2_outlined, Icons.inventory_2, 'Tồn kho'),
   _TabDef(AdminReportsScreen(embedded: true), Icons.bar_chart_outlined, Icons.bar_chart, 'Báo cáo'),
   _TabDef(AdminStaffScreen(embedded: true), Icons.badge_outlined, Icons.badge, 'Nhân sự'),

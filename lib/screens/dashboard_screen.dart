@@ -1,12 +1,18 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:fl_chart/fl_chart.dart';
 import '../providers/warehouse_provider.dart' show warehouseProvider;
 import '../providers/product_provider.dart';
+import '../providers/user_profile_provider.dart';
+import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
 import 'import_screen.dart';
 import 'export_screen.dart';
 import 'search_screen.dart';
 import 'bulk_scan_screen.dart';
+import 'activity_history_screen.dart';
+import 'login_screen.dart';
 
 class DashboardScreen extends ConsumerWidget {
   final bool embedded;
@@ -16,56 +22,55 @@ class DashboardScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final warehouse = ref.watch(warehouseProvider);
     final productsAsync = ref.watch(productsProvider);
+    final profile = ref.watch(userProfileProvider);
     final products = productsAsync.valueOrNull ?? [];
     final totalStock = products.fold(0, (sum, p) => sum + p.stock);
+    final totalValue = products.fold(0.0, (s, p) => s + p.stock * p.unitPrice);
+    final totalExportValue = _calculateTotalExportValue(warehouse.recentExports, products);
+    final userName = profile?.name ?? 'Người dùng';
+
+    final allActivities = <_ActivityItem>[];
+    for (final t in warehouse.recentImports) {
+      final pName = _firstProductName(t);
+      if (pName.isEmpty) continue;
+      allActivities.add(_ActivityItem(
+        type: 'import',
+        productName: pName,
+        detail: 'Nhập ${t['items']} — ${_transactionCode(t, 'NK')}',
+        time: _formatTime(t['createdAt']),
+      ));
+    }
+    for (final t in warehouse.recentExports) {
+      final pName = _firstProductName(t);
+      if (pName.isEmpty) continue;
+      allActivities.add(_ActivityItem(
+        type: 'export',
+        productName: pName,
+        detail: 'Xuất ${t['items']} — ${_transactionCode(t, 'XK')}',
+        time: _formatTime(t['createdAt']),
+      ));
+    }
+    allActivities.sort((a, b) => b.time.compareTo(a.time));
+    final recent = allActivities.take(5).toList();
 
     final body = SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Sync banner — tap to sync
-          if (warehouse.syncError != null)
+          _DashboardHeader(userName: userName, profile: profile),
+
+          if (warehouse.pendingSync > 0)
             GestureDetector(
-              onTap: () {
-                ref.read(warehouseProvider.notifier).clearSyncError();
-                ref.read(warehouseProvider.notifier).syncData();
-              },
+              onTap: warehouse.isSyncing
+                  ? null
+                  : () => ref.read(warehouseProvider.notifier).syncData(),
               child: Container(
                 width: double.infinity,
-                margin: const EdgeInsets.only(bottom: 16),
+                margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 decoration: BoxDecoration(
-                  color: AppColors.red.withValues(alpha: 0.1),
+                  color: AppColors.warningLight,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.red.withValues(alpha: 0.3)),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.error_outline, color: AppColors.red, size: 20),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        warehouse.syncError!,
-                        style: const TextStyle(color: AppColors.red, fontWeight: FontWeight.w500, fontSize: 14),
-                      ),
-                    ),
-                    const Icon(Icons.refresh, color: AppColors.red, size: 20),
-                  ],
-                ),
-              ),
-            )
-          else if (warehouse.pendingSync > 0)
-            GestureDetector(
-              onTap: warehouse.isSyncing ? null : () => ref.read(warehouseProvider.notifier).syncData(),
-              child: Container(
-                width: double.infinity,
-                margin: const EdgeInsets.only(bottom: 16),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                decoration: BoxDecoration(
-                  color: AppColors.orange.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.orange.withValues(alpha: 0.3)),
                 ),
                 child: Row(
                   children: [
@@ -73,184 +78,226 @@ class DashboardScreen extends ConsumerWidget {
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        '${warehouse.pendingSync} bản ghi chờ đồng bộ',
-                        style: const TextStyle(color: AppColors.orange, fontWeight: FontWeight.w500, fontSize: 14),
+                        warehouse.isSyncing
+                            ? 'Đang đồng bộ...'
+                            : '${warehouse.pendingSync} bản ghi chờ đồng bộ — Nhấn để đồng bộ',
+                        style: const TextStyle(color: AppColors.warningDark, fontWeight: FontWeight.w500, fontSize: 13),
                       ),
                     ),
                     if (warehouse.isSyncing)
-                      const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.orange))
-                    else
-                      const Icon(Icons.sync, color: AppColors.orange, size: 20),
+                      const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.orange)),
                   ],
                 ),
               ),
-            )
-          else if (warehouse.lastSyncAt != null)
-            Container(
-              width: double.infinity,
-              margin: const EdgeInsets.only(bottom: 16),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                color: AppColors.green.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.green.withValues(alpha: 0.3)),
-              ),
+            ),
+
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Text('THỐNG KÊ', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textMuted, letterSpacing: 1)),
+          ),
+          const SizedBox(height: 12),
+
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: profile?.isAdmin == true
+                ? Column(
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(child: _StatCard(icon: Icons.inventory_2_outlined, iconBgColor: AppColors.primaryLight, iconColor: AppColors.primary, label: 'Sản phẩm', value: '$totalStock')),
+                          const SizedBox(width: 10),
+                          Expanded(child: _StatCard(icon: Icons.arrow_downward, iconBgColor: AppColors.successLight, iconColor: AppColors.green, label: 'Nhập hôm nay', value: '${warehouse.todayImports}')),
+                          const SizedBox(width: 10),
+                          Expanded(child: _StatCard(icon: Icons.attach_money_outlined, iconBgColor: const Color(0xFFFEF3C7), iconColor: const Color(0xFFF59E0B), label: 'Giá trị tồn', value: _formatCurrency(totalValue))),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Expanded(child: _StatCard(icon: Icons.arrow_upward, iconBgColor: AppColors.errorLight, iconColor: AppColors.red, label: 'Xuất hôm nay', value: '${warehouse.todayExports}')),
+                          const SizedBox(width: 10),
+                          Expanded(child: _StatCard(icon: Icons.cloud_outlined, iconBgColor: AppColors.warningLight, iconColor: AppColors.orange, label: 'Chờ đồng bộ', value: '${warehouse.pendingSync}')),
+                          const SizedBox(width: 10),
+                          Expanded(child: _StatCard(icon: Icons.point_of_sale_outlined, iconBgColor: const Color(0xFFFCE7F3), iconColor: const Color(0xFFEC4899), label: 'Giá trị xuất', value: _formatCurrency(totalExportValue))),
+                        ],
+                      ),
+                    ],
+                  )
+                : Column(
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(child: _StatCard(icon: Icons.inventory_2_outlined, iconBgColor: AppColors.primaryLight, iconColor: AppColors.primary, label: 'Sản phẩm', value: '$totalStock')),
+                          const SizedBox(width: 10),
+                          Expanded(child: _StatCard(icon: Icons.arrow_downward, iconBgColor: AppColors.successLight, iconColor: AppColors.green, label: 'Nhập hôm nay', value: '${warehouse.todayImports}')),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Expanded(child: _StatCard(icon: Icons.arrow_upward, iconBgColor: AppColors.errorLight, iconColor: AppColors.red, label: 'Xuất hôm nay', value: '${warehouse.todayExports}')),
+                          const SizedBox(width: 10),
+                          Expanded(child: _StatCard(icon: Icons.cloud_outlined, iconBgColor: AppColors.warningLight, iconColor: AppColors.orange, label: 'Chờ đồng bộ', value: '${warehouse.pendingSync}')),
+                        ],
+                      ),
+                    ],
+                  ),
+          ),
+
+          if (profile?.isAdmin != true) ...[
+            const SizedBox(height: 24),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Text('THAO TÁC NHANH', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textMuted, letterSpacing: 1)),
+            ),
+            const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Row(
                 children: [
-                  const Icon(Icons.cloud_done_outlined, color: AppColors.green, size: 20),
-                  const SizedBox(width: 10),
-                  Text(
-                    'Đã đồng bộ',
-                    style: const TextStyle(color: AppColors.green, fontWeight: FontWeight.w500, fontSize: 14),
-                  ),
+                  Expanded(child: _QuickActionButton(icon: Icons.download_outlined, label: 'Nhập kho', color: AppColors.green, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ImportScreen())))),
+                  const SizedBox(width: 8),
+                  Expanded(child: _QuickActionButton(icon: Icons.upload_outlined, label: 'Xuất kho', color: AppColors.red, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ExportScreen())))),
+                  const SizedBox(width: 8),
+                  Expanded(child: _QuickActionButton(icon: Icons.qr_code_scanner_outlined, label: 'Kiểm kê', color: const Color(0xFF8B5CF6), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const BulkScanScreen())))),
+                  const SizedBox(width: 8),
+                  Expanded(child: _QuickActionButton(icon: Icons.search_outlined, label: 'Tra cứu', color: AppColors.primary, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SearchScreen())))),
                 ],
               ),
             ),
+          ],
 
-          // 4 Stat cards
-          Row(
-            children: [
-              Expanded(child: _StatCard(icon: Icons.inventory_2, label: 'Tổng SP', value: '$totalStock', color: AppColors.primary, lightColor: AppColors.primaryLight)),
-              const SizedBox(width: 10),
-              Expanded(child: _StatCard(icon: Icons.arrow_downward, label: 'Nhập HN', value: '${warehouse.todayImports}', color: AppColors.green, lightColor: AppColors.successLight)),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(child: _StatCard(icon: Icons.arrow_upward, label: 'Xuất HN', value: '${warehouse.todayExports}', color: AppColors.red, lightColor: AppColors.errorLight)),
-              const SizedBox(width: 10),
-              Expanded(child: _StatCard(icon: Icons.cloud_upload_outlined, label: 'Chờ đồng bộ', value: '${warehouse.pendingSync}', color: AppColors.orange, lightColor: AppColors.warningLight)),
-            ],
-          ),
           const SizedBox(height: 24),
 
-          // Quick actions
-          Text('Tác vụ nhanh', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(child: _ActionButton(icon: Icons.add_box, label: 'Nhập kho', color: AppColors.green, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ImportScreen())))),
-              const SizedBox(width: 10),
-              Expanded(child: _ActionButton(icon: Icons.outbox, label: 'Xuất kho', color: AppColors.red, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ExportScreen())))),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(child: _ActionButton(icon: Icons.qr_code_scanner, label: 'Kiểm kê', color: AppColors.primary, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const BulkScanScreen())))),
-              const SizedBox(width: 10),
-              Expanded(child: _ActionButton(icon: Icons.search, label: 'Tra cứu', color: AppColors.orange, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SearchScreen())))),
-            ],
-          ),
-          const SizedBox(height: 24),
-
-          // Recent activity
-          Row(
-            children: [
-              Text('Hoạt động gần đây', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
-              const Spacer(),
-              TextButton(onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Xem tất cả hoạt động — đang phát triển'), behavior: SnackBarBehavior.floating),
-                );
-              }, child: const Text('Xem tất cả')),
-            ],
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: [
+                Text('HOẠT ĐỘNG GẦN ĐÂY', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textMuted, letterSpacing: 1)),
+                const Spacer(),
+                TextButton(
+                  onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ActivityHistoryScreen())),
+                  child: const Text('Xem tất cả', style: TextStyle(fontSize: 13)),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 8),
-          if (warehouse.recentImports.isEmpty && warehouse.recentExports.isEmpty)
+
+          if (recent.isEmpty)
             Card(
+              margin: const EdgeInsets.symmetric(horizontal: 16),
               child: Padding(
                 padding: const EdgeInsets.all(24),
                 child: Center(
-                  child: Text('Chưa có hoạt động nào hôm nay', style: TextStyle(color: AppColors.textMuted)),
+                  child: Text('Chưa có hoạt động nào', style: TextStyle(color: AppColors.textMuted, fontSize: 14)),
                 ),
               ),
             )
           else
-            ...warehouse.recentImports.take(3).map((e) => ListTile(
-                  dense: true,
-                  leading: CircleAvatar(radius: 16, backgroundColor: AppColors.green.withValues(alpha: 0.1), child: const Icon(Icons.arrow_downward, color: AppColors.green, size: 18)),
-                  title: Text('Nhập kho: ${e['supplier']} — ${e['items']} SP', style: const TextStyle(fontSize: 13)),
-                  trailing: Text(_formatTime(e['time']), style: const TextStyle(fontSize: 11, color: AppColors.textMuted)),
-                )),
-          ...warehouse.recentExports.take(3).map((e) => ListTile(
-                dense: true,
-                leading: CircleAvatar(radius: 16, backgroundColor: AppColors.red.withValues(alpha: 0.1), child: const Icon(Icons.arrow_upward, color: AppColors.red, size: 18)),
-                title: Text('Xuất kho: ${e['customer']} — ${e['items']} SP', style: const TextStyle(fontSize: 13)),
-                trailing: Text(_formatTime(e['time']), style: const TextStyle(fontSize: 11, color: AppColors.textMuted)),
-              )),
-          const SizedBox(height: 32),
+            ...recent.map((a) => _ActivityTile(item: a)),
+
+          if (profile?.isAdmin == true) ...[
+            const SizedBox(height: 24),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Text('NHẬP / XUẤT THEO THÁNG', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textMuted, letterSpacing: 1)),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 260,
+              child: _ImportExportChart(imports: warehouse.recentImports, exports: warehouse.recentExports),
+            ),
+            const SizedBox(height: 24),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Text('DOANH THU THEO THÁNG', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textMuted, letterSpacing: 1)),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 260,
+              child: _RevenueChart(imports: warehouse.recentImports, exports: warehouse.recentExports, products: products),
+            ),
+          ],
+
+          const SizedBox(height: 40),
         ],
       ),
     );
 
     if (embedded) return body;
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Kho'),
-        actions: [
-          if (warehouse.isSyncing)
-            const Padding(
-              padding: EdgeInsets.only(right: 12),
-              child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
-            )
-          else if (warehouse.pendingSync > 0)
-            GestureDetector(
-              onTap: () => ref.read(warehouseProvider.notifier).syncData(),
-              child: Container(
-                margin: const EdgeInsets.only(right: 8),
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(color: AppColors.orange.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(16)),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.sync_problem, size: 16, color: AppColors.orange),
-                    const SizedBox(width: 4),
-                    Text('${warehouse.pendingSync}', style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.orange, fontSize: 13)),
-                  ],
-                ),
-              ),
-            )
-          else
-            GestureDetector(
-              onTap: () => ref.read(warehouseProvider.notifier).syncData(),
-              child: Container(
-                margin: const EdgeInsets.only(right: 8),
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(color: AppColors.green.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(16)),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.sync, size: 16, color: AppColors.green),
-                    SizedBox(width: 4),
-                    Text('Đã sync', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.green, fontSize: 13)),
-                  ],
-                ),
-              ),
+    return Scaffold(body: body);
+  }
+}
+
+class _DashboardHeader extends ConsumerWidget {
+  final String userName;
+  final UserProfileState? profile;
+  const _DashboardHeader({required this.userName, this.profile});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 12, 12, 8),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: const Color(0xFFFED7AA),
+              borderRadius: BorderRadius.circular(12),
             ),
+            child: const Icon(Icons.inventory_2, color: Color(0xFFF97316), size: 24),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('WarehousePro', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18, color: AppColors.textPrimary)),
+                Text('Xin chào, $userName', style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+              ],
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.refresh, color: Color(0xFF3B82F6)),
+            tooltip: 'Đồng bộ',
+            onPressed: () => ref.read(warehouseProvider.notifier).syncData(),
+          ),
+          IconButton(
+            icon: const Icon(Icons.logout, color: Color(0xFFEF4444)),
+            tooltip: 'Đăng xuất',
+            onPressed: () async {
+              await AuthService().signOut();
+              if (!context.mounted) return;
+              ref.read(userProfileProvider.notifier).state = null;
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (_) => const LoginScreen()),
+              );
+            },
+          ),
         ],
       ),
-      body: body,
     );
-  }
-
-  String _formatTime(dynamic t) {
-    if (t is DateTime) return '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
-    if (t is String) {
-      final dt = DateTime.tryParse(t);
-      if (dt != null) return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
-    }
-    return '';
   }
 }
 
 class _StatCard extends StatelessWidget {
   final IconData icon;
-  final String label, value;
-  final Color color;
-  final Color lightColor;
-  const _StatCard({required this.icon, required this.label, required this.value, required this.color, required this.lightColor});
+  final Color iconBgColor;
+  final Color iconColor;
+  final String label;
+  final String value;
+
+  const _StatCard({
+    required this.icon,
+    required this.iconBgColor,
+    required this.iconColor,
+    required this.label,
+    required this.value,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -260,16 +307,20 @@ class _StatCard extends StatelessWidget {
         child: Row(
           children: [
             Container(
-              width: 44, height: 44,
-              decoration: BoxDecoration(color: lightColor, borderRadius: BorderRadius.circular(12)),
-              child: Icon(icon, color: color, size: 22),
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: iconBgColor,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: iconColor, size: 22),
             ),
             const SizedBox(width: 12),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label, style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-                Text(value, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22, color: color)),
+                Text(label, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                Text(value, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22, color: iconColor)),
               ],
             ),
           ],
@@ -279,34 +330,405 @@ class _StatCard extends StatelessWidget {
   }
 }
 
-class _ActionButton extends StatelessWidget {
+class _QuickActionButton extends StatelessWidget {
   final IconData icon;
   final String label;
   final Color color;
   final VoidCallback onTap;
-  const _ActionButton({required this.icon, required this.label, required this.color, required this.onTap});
+
+  const _QuickActionButton({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 20),
+          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 4),
           child: Column(
             children: [
-              Container(
-                width: 52, height: 52,
-                decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(14)),
-                child: Icon(icon, color: color, size: 28),
-              ),
-              const SizedBox(height: 10),
-              Text(label, style: TextStyle(fontWeight: FontWeight.w600, color: color)),
+              Icon(icon, color: color, size: 28),
+              const SizedBox(height: 6),
+              Text(label, style: TextStyle(fontWeight: FontWeight.w600, color: color, fontSize: 12)),
             ],
           ),
         ),
       ),
     );
   }
+}
+
+class _ActivityItem {
+  final String type;
+  final String productName;
+  final String detail;
+  final String time;
+  const _ActivityItem({
+    required this.type,
+    required this.productName,
+    required this.detail,
+    required this.time,
+  });
+}
+
+class _ActivityTile extends StatelessWidget {
+  final _ActivityItem item;
+  const _ActivityTile({required this.item});
+
+  @override
+  Widget build(BuildContext context) {
+    final isImport = item.type == 'import';
+    final dotColor = isImport ? AppColors.green : AppColors.red;
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+        child: Row(
+          children: [
+            Container(
+              width: 10,
+              height: 10,
+              decoration: BoxDecoration(color: dotColor, shape: BoxShape.circle),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(item.productName, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14, color: AppColors.textPrimary)),
+                  const SizedBox(height: 2),
+                  Text(item.detail, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(item.time, style: const TextStyle(fontSize: 11, color: AppColors.textMuted)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ImportExportChart extends StatelessWidget {
+  final List<Map<String, dynamic>> imports, exports;
+  const _ImportExportChart({required this.imports, required this.exports});
+
+  @override
+  Widget build(BuildContext context) {
+    final monthlyData = _aggregateByMonth(imports, exports);
+    if (monthlyData.isEmpty) {
+      return Card(child: Center(child: Text('Chưa có dữ liệu', style: TextStyle(color: AppColors.textMuted))));
+    }
+
+    final entries = monthlyData.entries.toList()..sort((a, b) => a.key.compareTo(b.key));
+    final groups = entries.asMap().entries.map((e) {
+      final idx = e.key;
+      final data = e.value.value;
+      return BarChartGroupData(
+        x: idx,
+        barRods: [
+          BarChartRodData(toY: (data['import'] as num).toDouble(), color: AppColors.green, width: 12, borderRadius: const BorderRadius.vertical(top: Radius.circular(4))),
+          BarChartRodData(toY: (data['export'] as num).toDouble(), color: AppColors.red, width: 12, borderRadius: const BorderRadius.vertical(top: Radius.circular(4))),
+        ],
+      );
+    }).toList();
+
+    final maxY = entries.map((e) => max((e.value['import'] as num).toDouble(), (e.value['export'] as num).toDouble())).fold(0.0, (a, b) => max(a, b));
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(8, 16, 16, 8),
+        child: Column(
+          children: [
+            SizedBox(
+              height: 180,
+              child: BarChart(
+                BarChartData(
+                  alignment: BarChartAlignment.spaceAround,
+                  maxY: maxY * 1.2,
+                  barGroups: groups,
+                  titlesData: FlTitlesData(
+                    show: true,
+                    bottomTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        reservedSize: 28,
+                        getTitlesWidget: (value, meta) {
+                          final idx = value.toInt();
+                          if (idx < 0 || idx >= entries.length) return const SizedBox.shrink();
+                          final label = entries[idx].key.split('-').last;
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 6),
+                            child: Text('T$label', style: const TextStyle(fontSize: 10, color: AppColors.textMuted)),
+                          );
+                        },
+                      ),
+                    ),
+                    leftTitles: AxisTitles(
+                      sideTitles: SideTitles(showTitles: true, reservedSize: 36, getTitlesWidget: (value, meta) {
+                        return Text('${value.toInt()}', style: const TextStyle(fontSize: 10, color: AppColors.textMuted));
+                      }),
+                    ),
+                    topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  ),
+                  gridData: FlGridData(show: true, drawVerticalLine: false, horizontalInterval: maxY > 0 ? maxY / 4 : 1),
+                  borderData: FlBorderData(show: false),
+                  barTouchData: BarTouchData(enabled: true),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _LegendDot(color: AppColors.green, label: 'Nhập kho'),
+                const SizedBox(width: 20),
+                _LegendDot(color: AppColors.red, label: 'Xuất kho'),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _RevenueChart extends StatelessWidget {
+  final List<Map<String, dynamic>> imports, exports;
+  final List products;
+  const _RevenueChart({required this.imports, required this.exports, required this.products});
+
+  @override
+  Widget build(BuildContext context) {
+    final monthlyRevenue = _calculateMonthlyRevenue(exports, products);
+    if (monthlyRevenue.isEmpty) {
+      return Card(child: Center(child: Text('Chưa có dữ liệu', style: TextStyle(color: AppColors.textMuted))));
+    }
+
+    final entries = monthlyRevenue.entries.toList()..sort((a, b) => a.key.compareTo(b.key));
+    final maxRev = entries.map((e) => e.value).reduce(max);
+    final spots = entries.asMap().entries.map((e) => FlSpot(e.key.toDouble(), e.value.value.toDouble())).toList();
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(8, 16, 16, 8),
+        child: Column(
+          children: [
+            SizedBox(
+              height: 180,
+              child: LineChart(
+                LineChartData(
+                  minY: 0,
+                  maxY: maxRev * 1.2,
+                  lineBarsData: [
+                    LineChartBarData(
+                      spots: spots,
+                      color: AppColors.primary,
+                      barWidth: 3,
+                      dotData: const FlDotData(show: true),
+                      belowBarData: BarAreaData(show: true, color: AppColors.primary.withValues(alpha: 0.1)),
+                    ),
+                  ],
+                  titlesData: FlTitlesData(
+                    show: true,
+                    bottomTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        reservedSize: 28,
+                        getTitlesWidget: (value, meta) {
+                          final idx = value.toInt();
+                          if (idx < 0 || idx >= entries.length) return const SizedBox.shrink();
+                          final label = entries[idx].key.split('-').last;
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 6),
+                            child: Text('T$label', style: const TextStyle(fontSize: 10, color: AppColors.textMuted)),
+                          );
+                        },
+                      ),
+                    ),
+                    leftTitles: AxisTitles(
+                      sideTitles: SideTitles(showTitles: true, reservedSize: 48, getTitlesWidget: (value, meta) {
+                        if (value == 0) return const SizedBox.shrink();
+                        return Text('${(value / 1000000).toStringAsFixed(0)}tr', style: const TextStyle(fontSize: 10, color: AppColors.textMuted));
+                      }),
+                    ),
+                    topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  ),
+                  gridData: FlGridData(show: true, drawVerticalLine: false),
+                  borderData: FlBorderData(show: false),
+                  lineTouchData: LineTouchData(enabled: true),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _LegendDot(color: AppColors.primary, label: 'Doanh thu'),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _LegendDot extends StatelessWidget {
+  final Color color;
+  final String label;
+  const _LegendDot({required this.color, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(2)),
+        ),
+        const SizedBox(width: 6),
+        Text(label, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+      ],
+    );
+  }
+}
+
+Map<String, Map<String, int>> _aggregateByMonth(
+  List<Map<String, dynamic>> imports,
+  List<Map<String, dynamic>> exports,
+) {
+  final result = <String, Map<String, int>>{};
+  void add(String type, List<Map<String, dynamic>> list) {
+    for (final t in list) {
+      final createdAt = DateTime.tryParse(t['createdAt'] ?? '');
+      if (createdAt == null) continue;
+      final key = '${createdAt.year}-${createdAt.month.toString().padLeft(2, '0')}';
+      result.putIfAbsent(key, () => {'import': 0, 'export': 0});
+      final items = (t['items'] as num?)?.toInt() ?? 0;
+      result[key]![type] = (result[key]![type] ?? 0) + items;
+    }
+  }
+  add('import', imports);
+  add('export', exports);
+  return result;
+}
+
+Map<String, double> _calculateMonthlyRevenue(
+  List<Map<String, dynamic>> exports,
+  List products,
+) {
+  final priceMap = <String, double>{};
+  for (final p in products) {
+    final barcode = p.barcode as String?;
+    final exportPrice = (p.exportPrice as num?)?.toDouble() ?? 0;
+    if (barcode != null && barcode.isNotEmpty) {
+      priceMap[barcode] = exportPrice;
+    }
+  }
+
+  final result = <String, double>{};
+  for (final t in exports) {
+    final createdAt = DateTime.tryParse(t['createdAt'] ?? '');
+    if (createdAt == null) continue;
+    final key = '${createdAt.year}-${createdAt.month.toString().padLeft(2, '0')}';
+    result.putIfAbsent(key, () => 0);
+
+    final productsList = t['products'] as List<dynamic>? ?? [];
+    double revenue = 0;
+    for (final p in productsList) {
+      final barcode = p['barcode'] as String? ?? '';
+      final quantity = (p['quantity'] as num?)?.toInt() ?? 0;
+      final unitPrice = priceMap[barcode] ?? 0;
+      revenue += quantity * unitPrice;
+    }
+    if (revenue == 0) {
+      final items = (t['items'] as num?)?.toInt() ?? 0;
+      revenue = items * 50000;
+    }
+    result[key] = (result[key] ?? 0) + revenue;
+  }
+  return result;
+}
+
+double _calculateTotalExportValue(
+  List<Map<String, dynamic>> exports,
+  List products,
+) {
+  final priceMap = <String, double>{};
+  for (final p in products) {
+    final barcode = p.barcode as String?;
+    final exportPrice = (p.exportPrice as num?)?.toDouble() ?? 0;
+    if (barcode != null && barcode.isNotEmpty) {
+      priceMap[barcode] = exportPrice;
+    }
+  }
+
+  double total = 0;
+  for (final t in exports) {
+    final productsList = t['products'] as List<dynamic>? ?? [];
+    for (final p in productsList) {
+      final barcode = p['barcode'] as String? ?? '';
+      final quantity = (p['quantity'] as num?)?.toInt() ?? 0;
+      final unitPrice = priceMap[barcode] ?? 0;
+      total += quantity * unitPrice;
+    }
+    if (productsList.isEmpty) {
+      final items = (t['items'] as num?)?.toInt() ?? 0;
+      total += items * 50000;
+    }
+  }
+  return total;
+}
+
+String _formatCurrency(double value) {
+  final formatted = value.toStringAsFixed(0).replaceAllMapped(
+    RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+    (Match m) => '${m[1]},',
+  );
+  return '$formatted ₫';
+}
+
+String _firstProductName(Map<String, dynamic> t) {
+  final products = t['products'] as List<dynamic>? ?? [];
+  if (products.isNotEmpty) {
+    final name = products[0]['name'] as String?;
+    if (name != null && name.isNotEmpty) return name;
+  }
+  if (t['type'] == 'import') {
+    return t['supplier'] as String? ?? 'Nhập kho';
+  }
+  return t['customer'] as String? ?? 'Xuất kho';
+}
+
+String _transactionCode(Map<String, dynamic> t, String prefix) {
+  final firestoreId = t['firestoreId'] as String?;
+  final id = t['id'];
+  if (firestoreId != null && firestoreId.length >= 4) {
+    return '$prefix-${firestoreId.substring(0, 4).toUpperCase()}';
+  }
+  if (id != null) {
+    return '$prefix-${id.toString().padLeft(4, '0')}';
+  }
+  return '$prefix-0000';
+}
+
+String _formatTime(dynamic t) {
+  if (t is String) {
+    final dt = DateTime.tryParse(t);
+    if (dt != null) return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+  }
+  return '';
 }
