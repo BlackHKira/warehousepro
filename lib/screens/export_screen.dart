@@ -469,8 +469,16 @@ class _PickingOrderCard extends ConsumerWidget {
   }
 
   void _showDetail(BuildContext context, WidgetRef ref) {
-    final notifier = ref.read(warehouseProvider.notifier);
     final isTerminal = _status == 'completed' || _status == 'cancelled' || _status == 'error';
+    if (isTerminal) {
+      _showCompletedDetail(context);
+      return;
+    }
+    _showPendingDetail(context, ref);
+  }
+
+  void _showPendingDetail(BuildContext context, WidgetRef ref) {
+    final notifier = ref.read(warehouseProvider.notifier);
     final checked = List.filled(_products.length, false);
 
     showDialog(
@@ -511,7 +519,7 @@ class _PickingOrderCard extends ConsumerWidget {
                     final qty = (p['quantity'] as num?)?.toInt() ?? 0;
                     return CheckboxListTile(
                       value: checked[i],
-                      onChanged: isTerminal ? null : (v) => setDialogState(() => checked[i] = v ?? false),
+                      onChanged: (v) => setDialogState(() => checked[i] = v ?? false),
                       title: Text.rich(
                         TextSpan(
                           children: [
@@ -529,39 +537,96 @@ class _PickingOrderCard extends ConsumerWidget {
             ),
           ),
           actions: [
-            if (!isTerminal)
-              FilledButton.icon(
-                onPressed: () async {
-                  final allChecked = checked.every((c) => c);
-                  Navigator.pop(ctx);
+            FilledButton.icon(
+              onPressed: () async {
+                final allChecked = checked.every((c) => c);
+                Navigator.pop(ctx);
 
-                  String nextStatus;
-                  if (allChecked) {
-                    nextStatus = _status == 'pending' ? 'in_progress' : 'completed';
-                  } else {
-                    nextStatus = 'error';
-                  }
+                String nextStatus;
+                if (allChecked) {
+                  nextStatus = _status == 'pending' ? 'in_progress' : 'completed';
+                } else {
+                  nextStatus = 'error';
+                }
 
-                  await notifier.updateExportStatus(order, nextStatus);
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(allChecked
-                            ? 'Lệnh $_displayId ${_status == 'pending' ? 'đang xuất' : 'hoàn thành'}'
-                            : 'Lệnh $_displayId bị lỗi do thiếu hàng'),
-                        behavior: SnackBarBehavior.floating,
-                        backgroundColor: allChecked ? AppColors.green : AppColors.red,
-                      ),
-                    );
-                  }
-                },
-                icon: const Icon(Icons.check_circle, size: 18),
-                label: const Text('Xác nhận lệnh xuất'),
-                style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
-              ),
+                await notifier.updateExportStatus(order, nextStatus);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(allChecked
+                          ? 'Lệnh $_displayId ${_status == 'pending' ? 'đang xuất' : 'hoàn thành'}'
+                          : 'Lệnh $_displayId bị lỗi do thiếu hàng'),
+                      behavior: SnackBarBehavior.floating,
+                      backgroundColor: allChecked ? AppColors.green : AppColors.red,
+                    ),
+                  );
+                }
+              },
+              icon: const Icon(Icons.check_circle, size: 18),
+              label: const Text('Xác nhận lệnh xuất'),
+              style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
+            ),
             TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Đóng')),
           ],
         ),
+      ),
+    );
+  }
+
+  void _showCompletedDetail(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(_statusIcon(), color: _statusColor, size: 22),
+            const SizedBox(width: 10),
+            Expanded(child: Text('Lệnh $_displayId', style: const TextStyle(fontSize: 16))),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _detailRow(Icons.person, 'Khách hàng', _customer),
+              const SizedBox(height: 8),
+              _detailRow(Icons.calendar_today, 'Ngày tạo', _createdAt),
+              const SizedBox(height: 8),
+              _detailRow(Icons.map, 'Khu vực', _zone),
+              if (_note.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                _detailRow(Icons.note, 'Ghi chú', _note),
+              ],
+              const Divider(height: 24),
+              Text('Sản phẩm ($_items)', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+              const SizedBox(height: 8),
+              if (_products.isEmpty)
+                Text('Không có thông tin sản phẩm', style: TextStyle(color: AppColors.textMuted, fontSize: 13))
+              else
+                ..._products.asMap().entries.map((entry) {
+                  final i = entry.key;
+                  final p = entry.value as Map<String, dynamic>;
+                  final name = p['name'] as String? ?? 'SP ${i + 1}';
+                  final qty = (p['quantity'] as num?)?.toInt() ?? 0;
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: Row(
+                      children: [
+                        Icon(Icons.circle, size: 6, color: _statusColor),
+                        const SizedBox(width: 8),
+                        Expanded(child: Text(name, style: const TextStyle(fontSize: 13))),
+                        Text('x$qty', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: _statusColor)),
+                      ],
+                    ),
+                  );
+                }),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Đóng')),
+        ],
       ),
     );
   }
