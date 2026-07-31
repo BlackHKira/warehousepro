@@ -25,8 +25,6 @@ class DashboardScreen extends ConsumerWidget {
     final profile = ref.watch(userProfileProvider);
     final products = productsAsync.valueOrNull ?? [];
     final totalStock = products.fold(0, (sum, p) => sum + p.stock);
-    final totalValue = products.fold(0.0, (s, p) => s + p.stock * p.unitPrice);
-    final totalExportValue = _calculateTotalExportValue(warehouse.recentExports, products);
     final userName = profile?.name ?? 'Người dùng';
 
     final allActivities = <_ActivityItem>[];
@@ -99,49 +97,25 @@ class DashboardScreen extends ConsumerWidget {
 
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: profile?.isAdmin == true
-                ? Column(
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(child: _StatCard(icon: Icons.inventory_2_outlined, iconBgColor: AppColors.primaryLight, iconColor: AppColors.primary, label: 'Sản phẩm', value: '$totalStock')),
-                          const SizedBox(width: 10),
-                          Expanded(child: _StatCard(icon: Icons.arrow_downward, iconBgColor: AppColors.successLight, iconColor: AppColors.green, label: 'Nhập hôm nay', value: '${warehouse.todayImports}')),
-                          const SizedBox(width: 10),
-                          Expanded(child: _StatCard(icon: Icons.attach_money_outlined, iconBgColor: const Color(0xFFFEF3C7), iconColor: const Color(0xFFF59E0B), label: 'Giá trị tồn', value: _formatCurrency(totalValue))),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-                      Row(
-                        children: [
-                          Expanded(child: _StatCard(icon: Icons.arrow_upward, iconBgColor: AppColors.errorLight, iconColor: AppColors.red, label: 'Xuất hôm nay', value: '${warehouse.todayExports}')),
-                          const SizedBox(width: 10),
-                          Expanded(child: _StatCard(icon: Icons.cloud_outlined, iconBgColor: AppColors.warningLight, iconColor: AppColors.orange, label: 'Chờ đồng bộ', value: '${warehouse.pendingSync}')),
-                          const SizedBox(width: 10),
-                          Expanded(child: _StatCard(icon: Icons.point_of_sale_outlined, iconBgColor: const Color(0xFFFCE7F3), iconColor: const Color(0xFFEC4899), label: 'Giá trị xuất', value: _formatCurrency(totalExportValue))),
-                        ],
-                      ),
-                    ],
-                  )
-                : Column(
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(child: _StatCard(icon: Icons.inventory_2_outlined, iconBgColor: AppColors.primaryLight, iconColor: AppColors.primary, label: 'Sản phẩm', value: '$totalStock')),
-                          const SizedBox(width: 10),
-                          Expanded(child: _StatCard(icon: Icons.arrow_downward, iconBgColor: AppColors.successLight, iconColor: AppColors.green, label: 'Nhập hôm nay', value: '${warehouse.todayImports}')),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-                      Row(
-                        children: [
-                          Expanded(child: _StatCard(icon: Icons.arrow_upward, iconBgColor: AppColors.errorLight, iconColor: AppColors.red, label: 'Xuất hôm nay', value: '${warehouse.todayExports}')),
-                          const SizedBox(width: 10),
-                          Expanded(child: _StatCard(icon: Icons.cloud_outlined, iconBgColor: AppColors.warningLight, iconColor: AppColors.orange, label: 'Chờ đồng bộ', value: '${warehouse.pendingSync}')),
-                        ],
-                      ),
-                    ],
-                  ),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    Expanded(child: _StatCard(icon: Icons.inventory_2_outlined, iconBgColor: AppColors.primaryLight, iconColor: AppColors.primary, label: 'Sản phẩm', value: '$totalStock')),
+                    const SizedBox(width: 10),
+                    Expanded(child: _StatCard(icon: Icons.arrow_downward, iconBgColor: AppColors.successLight, iconColor: AppColors.green, label: 'Nhập hôm nay', value: '${warehouse.todayImports}')),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(child: _StatCard(icon: Icons.arrow_upward, iconBgColor: AppColors.errorLight, iconColor: AppColors.red, label: 'Xuất hôm nay', value: '${warehouse.todayExports}')),
+                    const SizedBox(width: 10),
+                    Expanded(child: _StatCard(icon: Icons.cloud_outlined, iconBgColor: AppColors.warningLight, iconColor: AppColors.orange, label: 'Chờ đồng bộ', value: '${warehouse.pendingSync}')),
+                  ],
+                ),
+              ],
+            ),
           ),
 
           if (profile?.isAdmin != true) ...[
@@ -211,12 +185,12 @@ class DashboardScreen extends ConsumerWidget {
             const SizedBox(height: 24),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Text('DOANH THU THEO THÁNG', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textMuted, letterSpacing: 1)),
+              child: Text('XUẤT KHO THEO THÁNG', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textMuted, letterSpacing: 1)),
             ),
             const SizedBox(height: 12),
             SizedBox(
               height: 260,
-              child: _RevenueChart(imports: warehouse.recentImports, exports: warehouse.recentExports, products: products),
+              child: _ExportChart(exports: warehouse.recentExports),
             ),
           ],
 
@@ -502,20 +476,19 @@ class _ImportExportChart extends StatelessWidget {
   }
 }
 
-class _RevenueChart extends StatelessWidget {
-  final List<Map<String, dynamic>> imports, exports;
-  final List products;
-  const _RevenueChart({required this.imports, required this.exports, required this.products});
+class _ExportChart extends StatelessWidget {
+  final List<Map<String, dynamic>> exports;
+  const _ExportChart({required this.exports});
 
   @override
   Widget build(BuildContext context) {
-    final monthlyRevenue = _calculateMonthlyRevenue(exports, products);
-    if (monthlyRevenue.isEmpty) {
+    final monthlyQty = _calculateMonthlyExportQty(exports);
+    if (monthlyQty.isEmpty) {
       return Card(child: Center(child: Text('Chưa có dữ liệu', style: TextStyle(color: AppColors.textMuted))));
     }
 
-    final entries = monthlyRevenue.entries.toList()..sort((a, b) => a.key.compareTo(b.key));
-    final maxRev = entries.map((e) => e.value).reduce(max);
+    final entries = monthlyQty.entries.toList()..sort((a, b) => a.key.compareTo(b.key));
+    final maxQty = entries.map((e) => e.value).reduce(max).toDouble();
     final spots = entries.asMap().entries.map((e) => FlSpot(e.key.toDouble(), e.value.value.toDouble())).toList();
 
     return Card(
@@ -528,7 +501,7 @@ class _RevenueChart extends StatelessWidget {
               child: LineChart(
                 LineChartData(
                   minY: 0,
-                  maxY: maxRev * 1.2,
+                  maxY: maxQty * 1.2,
                   lineBarsData: [
                     LineChartBarData(
                       spots: spots,
@@ -558,7 +531,7 @@ class _RevenueChart extends StatelessWidget {
                     leftTitles: AxisTitles(
                       sideTitles: SideTitles(showTitles: true, reservedSize: 48, getTitlesWidget: (value, meta) {
                         if (value == 0) return const SizedBox.shrink();
-                        return Text('${(value / 1000000).toStringAsFixed(0)}tr', style: const TextStyle(fontSize: 10, color: AppColors.textMuted));
+                        return Text('${value.toInt()}', style: const TextStyle(fontSize: 10, color: AppColors.textMuted));
                       }),
                     ),
                     topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
@@ -574,7 +547,7 @@ class _RevenueChart extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                _LegendDot(color: AppColors.primary, label: 'Doanh thu'),
+                _LegendDot(color: AppColors.primary, label: 'Số lượng xuất'),
               ],
             ),
           ],
@@ -626,79 +599,19 @@ Map<String, Map<String, int>> _aggregateByMonth(
   return result;
 }
 
-Map<String, double> _calculateMonthlyRevenue(
+Map<String, int> _calculateMonthlyExportQty(
   List<Map<String, dynamic>> exports,
-  List products,
 ) {
-  final priceMap = <String, double>{};
-  for (final p in products) {
-    final barcode = p.barcode as String?;
-    final exportPrice = (p.exportPrice as num?)?.toDouble() ?? 0;
-    if (barcode != null && barcode.isNotEmpty) {
-      priceMap[barcode] = exportPrice;
-    }
-  }
-
-  final result = <String, double>{};
+  final result = <String, int>{};
   for (final t in exports) {
     final createdAt = DateTime.tryParse(t['createdAt'] ?? '');
     if (createdAt == null) continue;
     final key = '${createdAt.year}-${createdAt.month.toString().padLeft(2, '0')}';
     result.putIfAbsent(key, () => 0);
-
-    final productsList = t['products'] as List<dynamic>? ?? [];
-    double revenue = 0;
-    for (final p in productsList) {
-      final barcode = p['barcode'] as String? ?? '';
-      final quantity = (p['quantity'] as num?)?.toInt() ?? 0;
-      final unitPrice = priceMap[barcode] ?? 0;
-      revenue += quantity * unitPrice;
-    }
-    if (revenue == 0) {
-      final items = (t['items'] as num?)?.toInt() ?? 0;
-      revenue = items * 50000;
-    }
-    result[key] = (result[key] ?? 0) + revenue;
+    final items = (t['items'] as num?)?.toInt() ?? 0;
+    result[key] = (result[key] ?? 0) + items;
   }
   return result;
-}
-
-double _calculateTotalExportValue(
-  List<Map<String, dynamic>> exports,
-  List products,
-) {
-  final priceMap = <String, double>{};
-  for (final p in products) {
-    final barcode = p.barcode as String?;
-    final exportPrice = (p.exportPrice as num?)?.toDouble() ?? 0;
-    if (barcode != null && barcode.isNotEmpty) {
-      priceMap[barcode] = exportPrice;
-    }
-  }
-
-  double total = 0;
-  for (final t in exports) {
-    final productsList = t['products'] as List<dynamic>? ?? [];
-    for (final p in productsList) {
-      final barcode = p['barcode'] as String? ?? '';
-      final quantity = (p['quantity'] as num?)?.toInt() ?? 0;
-      final unitPrice = priceMap[barcode] ?? 0;
-      total += quantity * unitPrice;
-    }
-    if (productsList.isEmpty) {
-      final items = (t['items'] as num?)?.toInt() ?? 0;
-      total += items * 50000;
-    }
-  }
-  return total;
-}
-
-String _formatCurrency(double value) {
-  final formatted = value.toStringAsFixed(0).replaceAllMapped(
-    RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-    (Match m) => '${m[1]},',
-  );
-  return '$formatted ₫';
 }
 
 String _firstProductName(Map<String, dynamic> t) {

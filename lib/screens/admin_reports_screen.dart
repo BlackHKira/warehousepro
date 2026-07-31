@@ -15,7 +15,6 @@ class AdminReportsScreen extends ConsumerWidget {
       error: (e, _) => Center(child: Text('Lỗi: $e')),
       data: (products) {
         final totalStock = products.fold(0, (s, p) => s + p.stock);
-        final totalValue = products.fold(0.0, (s, p) => s + p.stock * p.unitPrice);
         final lowStock = products.where((p) => p.isLowStock).length;
 
         return ListView(
@@ -25,7 +24,7 @@ class AdminReportsScreen extends ConsumerWidget {
               children: [
                 Expanded(child: _StatCard(icon: Icons.inventory_2, label: 'Tổng tồn', value: '$totalStock', color: AppColors.primary)),
                 const SizedBox(width: 10),
-                Expanded(child: _StatCard(icon: Icons.attach_money, label: 'Giá trị tồn', value: '${(totalValue / 1000000).toStringAsFixed(1)} tr', color: AppColors.green)),
+                Expanded(child: _StatCard(icon: Icons.category, label: 'Sản phẩm', value: '${products.length}', color: AppColors.green)),
               ],
             ),
             const SizedBox(height: 10),
@@ -33,7 +32,7 @@ class AdminReportsScreen extends ConsumerWidget {
               children: [
                 Expanded(child: _StatCard(icon: Icons.warning_amber, label: 'Sắp hết', value: '$lowStock', color: AppColors.orange)),
                 const SizedBox(width: 10),
-                Expanded(child: _StatCard(icon: Icons.category, label: 'Sản phẩm', value: '${products.length}', color: AppColors.primary)),
+                const Expanded(child: SizedBox.shrink()),
               ],
             ),
             const SizedBox(height: 20),

@@ -24,7 +24,6 @@ class AdminDashboardScreen extends ConsumerWidget {
     final users = usersAsync.valueOrNull ?? [];
 
     final totalStock = products.fold(0, (s, p) => s + p.stock);
-    final totalValue = products.fold(0.0, (s, p) => s + p.stock * p.unitPrice);
     final lowStockCount = products.where((p) => p.isLowStock).length;
 
     final body = SingleChildScrollView(
@@ -36,15 +35,15 @@ class AdminDashboardScreen extends ConsumerWidget {
             children: [
               Expanded(child: _StatCard(icon: Icons.inventory_2, label: 'Tổng tồn', value: '$totalStock', color: AppColors.primary)),
               const SizedBox(width: 10),
-              Expanded(child: _StatCard(icon: Icons.attach_money, label: 'Giá trị tồn', value: '${(totalValue / 1000000).toStringAsFixed(1)} tr', color: AppColors.green)),
+              Expanded(child: _StatCard(icon: Icons.people, label: 'Nhân sự', value: '${users.length}', color: Colors.purple)),
             ],
           ),
           const SizedBox(height: 10),
           Row(
             children: [
-              Expanded(child: _StatCard(icon: Icons.people, label: 'Nhân sự', value: '${users.length}', color: Colors.purple)),
+              Expanded(child: _StatCard(icon: Icons.warning_amber, label: 'Sắp hết', value: '$lowStockCount', color: AppColors.orange)),
               const SizedBox(width: 10),
-              Expanded(child: _StatCard(icon: Icons.map, label: 'Khu vực', value: '${zones.length}', color: AppColors.orange)),
+              Expanded(child: _StatCard(icon: Icons.map, label: 'Khu vực', value: '${zones.length}', color: AppColors.primary)),
             ],
           ),
           if (lowStockCount > 0) ...[
@@ -73,12 +72,12 @@ class AdminDashboardScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 24),
 
-          // Revenue chart
-          Text('Doanh thu theo tháng', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+          // Export quantity chart
+          Text('Xuất kho theo tháng', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
           const SizedBox(height: 12),
           SizedBox(
             height: 220,
-            child: _RevenueChart(imports: warehouse.recentImports, exports: warehouse.recentExports, products: products),
+            child: _ExportChart(exports: warehouse.recentExports),
           ),
           const SizedBox(height: 32),
         ],
@@ -188,20 +187,19 @@ class _ImportExportChart extends StatelessWidget {
   }
 }
 
-class _RevenueChart extends StatelessWidget {
-  final List<Map<String, dynamic>> imports, exports;
-  final List products;
-  const _RevenueChart({required this.imports, required this.exports, required this.products});
+class _ExportChart extends StatelessWidget {
+  final List<Map<String, dynamic>> exports;
+  const _ExportChart({required this.exports});
 
   @override
   Widget build(BuildContext context) {
-    final monthlyRevenue = _calculateMonthlyRevenue(exports, products);
-    if (monthlyRevenue.isEmpty) {
+    final monthlyQty = _calculateMonthlyExportQty(exports);
+    if (monthlyQty.isEmpty) {
       return Card(child: Center(child: Text('Chưa có dữ liệu', style: TextStyle(color: AppColors.textMuted))));
     }
 
-    final entries = monthlyRevenue.entries.toList()..sort((a, b) => a.key.compareTo(b.key));
-    final maxRev = entries.map((e) => e.value).reduce(max);
+    final entries = monthlyQty.entries.toList()..sort((a, b) => a.key.compareTo(b.key));
+    final maxQty = entries.map((e) => e.value).reduce(max).toDouble();
     final spots = entries.asMap().entries.map((e) => FlSpot(e.key.toDouble(), e.value.value.toDouble())).toList();
 
     return Card(
@@ -210,7 +208,7 @@ class _RevenueChart extends StatelessWidget {
         child: LineChart(
           LineChartData(
             minY: 0,
-            maxY: maxRev * 1.2,
+            maxY: maxQty * 1.2,
             lineBarsData: [
               LineChartBarData(
                 spots: spots,
@@ -240,7 +238,7 @@ class _RevenueChart extends StatelessWidget {
               leftTitles: AxisTitles(
                 sideTitles: SideTitles(showTitles: true, reservedSize: 48, getTitlesWidget: (value, meta) {
                   if (value == 0) return const SizedBox.shrink();
-                  return Text('${(value / 1000000).toStringAsFixed(0)}tr', style: const TextStyle(fontSize: 10, color: AppColors.textMuted));
+                  return Text('${value.toInt()}', style: const TextStyle(fontSize: 10, color: AppColors.textMuted));
                 }),
               ),
               topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
@@ -254,6 +252,21 @@ class _RevenueChart extends StatelessWidget {
       ),
     );
   }
+}
+
+Map<String, int> _calculateMonthlyExportQty(
+  List<Map<String, dynamic>> exports,
+) {
+  final result = <String, int>{};
+  for (final t in exports) {
+    final createdAt = DateTime.tryParse(t['createdAt'] ?? '');
+    if (createdAt == null) continue;
+    final key = '${createdAt.year}-${createdAt.month.toString().padLeft(2, '0')}';
+    result.putIfAbsent(key, () => 0);
+    final items = (t['items'] as num?)?.toInt() ?? 0;
+    result[key] = (result[key] ?? 0) + items;
+  }
+  return result;
 }
 
 Map<String, Map<String, int>> _aggregateByMonth(
@@ -273,42 +286,5 @@ Map<String, Map<String, int>> _aggregateByMonth(
   }
   add('import', imports);
   add('export', exports);
-  return result;
-}
-
-Map<String, double> _calculateMonthlyRevenue(
-  List<Map<String, dynamic>> exports,
-  List products,
-) {
-  final priceMap = <String, double>{};
-  for (final p in products) {
-    final barcode = p.barcode as String?;
-    final exportPrice = (p.exportPrice as num?)?.toDouble() ?? 0;
-    if (barcode != null && barcode.isNotEmpty) {
-      priceMap[barcode] = exportPrice;
-    }
-  }
-
-  final result = <String, double>{};
-  for (final t in exports) {
-    final createdAt = DateTime.tryParse(t['createdAt'] ?? '');
-    if (createdAt == null) continue;
-    final key = '${createdAt.year}-${createdAt.month.toString().padLeft(2, '0')}';
-    result.putIfAbsent(key, () => 0);
-
-    final productsList = t['products'] as List<dynamic>? ?? [];
-    double revenue = 0;
-    for (final p in productsList) {
-      final barcode = p['barcode'] as String? ?? '';
-      final quantity = (p['quantity'] as num?)?.toInt() ?? 0;
-      final unitPrice = priceMap[barcode] ?? 0;
-      revenue += quantity * unitPrice;
-    }
-    if (revenue == 0) {
-      final items = (t['items'] as num?)?.toInt() ?? 0;
-      revenue = items * 50000;
-    }
-    result[key] = (result[key] ?? 0) + revenue;
-  }
   return result;
 }
