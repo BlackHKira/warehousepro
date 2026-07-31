@@ -32,11 +32,11 @@ class _BulkScanScreenState extends ConsumerState<BulkScanScreen> {
       final actual = p.stock + (DateTime.now().millisecond % 5) - 2;
       final rnd = DateTime.now().millisecond % 7;
       final status = rnd == 6 ? 'error' : (actual == p.stock ? 'match' : (actual < p.stock ? 'shortage' : 'surplus'));
-      results.add(_ScanResult(product: p.name, barcode: p.barcode, book: p.stock, actual: actual < 0 ? 0 : actual, price: p.exportPrice.round(), status: status, unitPerCase: p.unitPerCase));
+      results.add(_ScanResult(product: p.name, barcode: p.barcode, book: p.stock, actual: actual < 0 ? 0 : actual, status: status, unitPerCase: p.unitPerCase));
     }
 
     if (results.isEmpty) {
-      results.add(_ScanResult(product: '(Chưa có SP trong khu vực $_selectedZone)', barcode: '-', book: 0, actual: 0, price: 0, status: 'match', unitPerCase: 1));
+      results.add(_ScanResult(product: '(Chưa có SP trong khu vực $_selectedZone)', barcode: '-', book: 0, actual: 0, status: 'match', unitPerCase: 1));
     }
 
     setState(() {
@@ -202,7 +202,7 @@ class _BulkScanScreenState extends ConsumerState<BulkScanScreen> {
                     child: ListTile(
                       leading: CircleAvatar(backgroundColor: cardBg, child: Icon(statusIcon, color: cardText, size: 22)),
                       title: Text(r.product, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14)),
-                      subtitle: Text('${_formatPrice(r.price)} · Sổ: ${formatStock(r.book, r.unitPerCase)} → Thực tế: ${formatStock(r.actual, r.unitPerCase)}', style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                      subtitle: Text('Sổ: ${formatStock(r.book, r.unitPerCase)} → Thực tế: ${formatStock(r.actual, r.unitPerCase)}', style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
                       trailing: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(color: cardBg, borderRadius: BorderRadius.circular(8)),
@@ -237,14 +237,9 @@ class _BulkScanScreenState extends ConsumerState<BulkScanScreen> {
   }
 }
 
-String _formatPrice(int price) {
-  if (price == 0) return '0 đ';
-  return '${(price / 1000).toStringAsFixed(0)}.${(price % 1000 ~/ 100)}k';
-}
-
 class _ScanResult {
   final String product, barcode;
-  final int book, actual, price, unitPerCase;
+  final int book, actual, unitPerCase;
   final String status;
-  _ScanResult({required this.product, required this.barcode, required this.book, required this.actual, required this.price, required this.status, required this.unitPerCase});
+  _ScanResult({required this.product, required this.barcode, required this.book, required this.actual, required this.status, required this.unitPerCase});
 }

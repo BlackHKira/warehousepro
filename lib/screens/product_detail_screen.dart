@@ -91,8 +91,6 @@ class ProductDetailScreen extends ConsumerWidget {
           _infoRow(label: 'Đơn vị', value: product.unit),
           _infoRow(label: 'Quy đổi', value: '1 thùng = ${product.unitPerCase} ${product.unit}'),
           _infoRow(label: 'Tồn kho', value: formatStockDetail(product.stock, product.unitPerCase)),
-          _infoRow(label: 'Giá nhập', value: '${product.unitPricePerCase.toStringAsFixed(0)}đ/thùng'),
-          _infoRow(label: 'Giá bán', value: '${product.exportPricePerCase.toStringAsFixed(0)}đ/thùng'),
           _infoRow(label: 'Ngưỡng tồn', value: formatStockDetail(product.minStock, product.unitPerCase)),
           if (product.note.isNotEmpty) _infoRow(label: 'Ghi chú', value: product.note),
           const SizedBox(height: 16),

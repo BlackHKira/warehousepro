@@ -11,8 +11,6 @@ class Product {
   final String unit;
   final int stock;
   final int serverStock;
-  final double unitPrice;
-  final double exportPrice;
   final int minStock;
   final int unitPerCase;
   final String note;
@@ -30,8 +28,6 @@ class Product {
     this.unit = 'cái',
     this.stock = 0,
     this.serverStock = 0,
-    this.unitPrice = 0,
-    this.exportPrice = 0,
     this.minStock = 10,
     this.unitPerCase = 1,
     this.note = '',
@@ -59,8 +55,6 @@ class Product {
       unit: map['unit'] as String? ?? 'cái',
       stock: (map['stock'] as num?)?.toInt() ?? 0,
       serverStock: (map['serverStock'] as num?)?.toInt() ?? 0,
-      unitPrice: (map['unitPrice'] as num?)?.toDouble() ?? 0,
-      exportPrice: (map['exportPrice'] as num?)?.toDouble() ?? 0,
       minStock: (map['minStock'] as num?)?.toInt() ?? 10,
       unitPerCase: (map['unitPerCase'] as num?)?.toInt() ?? 1,
       note: map['note'] as String? ?? '',
@@ -87,8 +81,6 @@ class Product {
         'unit': unit,
         'stock': stock,
         'serverStock': serverStock,
-        'unitPrice': unitPrice,
-        'exportPrice': exportPrice,
         'minStock': minStock,
         'unitPerCase': unitPerCase,
         'note': note,
@@ -101,6 +93,4 @@ class Product {
 
   int get stockInCases => unitPerCase > 0 ? stock ~/ unitPerCase : 0;
   int get stockRemainder => unitPerCase > 0 ? stock % unitPerCase : stock;
-  double get unitPricePerCase => unitPrice * unitPerCase;
-  double get exportPricePerCase => exportPrice * unitPerCase;
 }
