@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/user_profile_provider.dart';
+import '../providers/selected_tab_provider.dart';
 import '../providers/warehouse_provider.dart';
 import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
@@ -23,8 +24,6 @@ class MainShell extends ConsumerStatefulWidget {
 }
 
 class _MainShellState extends ConsumerState<MainShell> {
-  int _selectedIndex = 0;
-
   @override
   void initState() {
     super.initState();
@@ -46,12 +45,13 @@ class _MainShellState extends ConsumerState<MainShell> {
     final isAdmin = profile?.isAdmin ?? (widget.initialRole != 'Thủ kho');
 
     final tabs = isAdmin ? _adminTabs : _staffTabs;
-    final selectedIndex = _selectedIndex < tabs.length ? _selectedIndex : 0;
+    final selectedIndex = ref.watch(selectedTabProvider);
+    final safeIndex = selectedIndex < tabs.length ? selectedIndex : 0;
     final warehouse = ref.watch(warehouseProvider);
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(tabs[selectedIndex].label),
+        title: Text(tabs[safeIndex].label),
         actions: [
           if (warehouse.isSyncing)
             const Padding(
@@ -196,12 +196,12 @@ class _MainShellState extends ConsumerState<MainShell> {
         ],
       ),
       body: IndexedStack(
-        index: selectedIndex,
+        index: safeIndex,
         children: tabs.map((t) => t.screen).toList(),
       ),
       bottomNavigationBar: NavigationBar(
-        selectedIndex: selectedIndex,
-        onDestinationSelected: (i) => setState(() => _selectedIndex = i),
+        selectedIndex: safeIndex,
+        onDestinationSelected: (i) => ref.read(selectedTabProvider.notifier).state = i,
         destinations: tabs
             .map(
               (t) => NavigationDestination(
