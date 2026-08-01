@@ -2,10 +2,13 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_core/firebase_core.dart';
 import '../providers/warehouse_provider.dart' show warehouseProvider;
 import '../providers/product_provider.dart';
 import '../providers/user_profile_provider.dart';
 import '../services/auth_service.dart';
+import '../services/local_storage_service.dart';
 import '../theme/app_theme.dart';
 import 'import_screen.dart';
 import 'export_screen.dart';
@@ -27,29 +30,10 @@ class DashboardScreen extends ConsumerWidget {
     final totalStock = products.fold(0, (sum, p) => sum + p.stock);
     final userName = profile?.name ?? 'Người dùng';
 
-    final allActivities = <_ActivityItem>[];
-    for (final t in warehouse.recentImports) {
-      final pName = _firstProductName(t);
-      if (pName.isEmpty) continue;
-      allActivities.add(_ActivityItem(
-        type: 'import',
-        productName: pName,
-        detail: 'Nhập ${t['items']} — ${_transactionCode(t, 'NK')}',
-        time: _formatTime(t['createdAt']),
-      ));
-    }
-    for (final t in warehouse.recentExports) {
-      final pName = _firstProductName(t);
-      if (pName.isEmpty) continue;
-      allActivities.add(_ActivityItem(
-        type: 'export',
-        productName: pName,
-        detail: 'Xuất ${t['items']} — ${_transactionCode(t, 'XK')}',
-        time: _formatTime(t['createdAt']),
-      ));
-    }
-    allActivities.sort((a, b) => b.time.compareTo(a.time));
-    final recent = allActivities.take(5).toList();
+    final db = FirebaseFirestore.instanceFor(
+      app: Firebase.app(),
+      databaseId: 'warehousepro-db',
+    );
 
     final body = SingleChildScrollView(
       child: Column(
@@ -158,18 +142,80 @@ class DashboardScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 8),
 
-          if (recent.isEmpty)
-            Card(
-              margin: const EdgeInsets.symmetric(horizontal: 16),
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Center(
-                  child: Text('Chưa có hoạt động nào', style: TextStyle(color: AppColors.textMuted, fontSize: 14)),
+          StreamBuilder<QuerySnapshot>(
+            stream: db.collection('stock_transactions')
+                .orderBy('createdAt', descending: true)
+                .snapshots(),
+            builder: (context, snapshot) {
+              if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                return Card(
+                  margin: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Center(
+                      child: Text('Chưa có hoạt động nào', style: TextStyle(color: AppColors.textMuted, fontSize: 14)),
+                    ),
+                  ),
+                );
+              }
+              final now = DateTime.now();
+              final twoDaysAgo = DateTime(now.year, now.month, now.day - 2);
+              final docs = snapshot.data!.docs.where((doc) {
+                final data = doc.data() as Map<String, dynamic>;
+                final ts = data['createdAt'] as Timestamp?;
+                if (ts == null) return false;
+                return ts.toDate().isAfter(twoDaysAgo);
+              }).toList();
+              if (docs.isEmpty) {
+                return Card(
+                  margin: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Center(
+                      child: Text('Chưa có hoạt động nào trong 2 ngày gần đây', style: TextStyle(color: AppColors.textMuted, fontSize: 14)),
+                    ),
+                  ),
+                );
+              }
+              return ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 400),
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: docs.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 4),
+                  itemBuilder: (context, index) {
+                    final doc = docs[index];
+                    final data = doc.data() as Map<String, dynamic>;
+                    final isImport = data['type'] == 'import';
+                    final products = data['products'] as List<dynamic>? ?? [];
+                    String productName = '';
+                    if (products.isNotEmpty) {
+                      productName = products[0]['name'] as String? ?? '';
+                    }
+                    if (productName.isEmpty) {
+                      productName = isImport
+                          ? (data['supplier'] as String? ?? 'Nhập kho')
+                          : (data['customer'] as String? ?? 'Xuất kho');
+                    }
+                    final ts = data['createdAt'] as Timestamp?;
+                    final timeStr = ts != null
+                        ? '${ts.toDate().hour.toString().padLeft(2, '0')}:${ts.toDate().minute.toString().padLeft(2, '0')}'
+                        : '';
+                    return _ActivityTile(item: _ActivityItem(
+                      type: isImport ? 'import' : 'export',
+                      productName: productName,
+                      detail: '',
+                      time: timeStr,
+                      zone: data['zone'] as String? ?? 'D',
+                      docId: doc.id,
+                      rawData: data,
+                    ));
+                  },
                 ),
-              ),
-            )
-          else
-            ...recent.map((a) => _ActivityTile(item: a)),
+              );
+            },
+          ),
 
           if (profile?.isAdmin == true) ...[
             const SizedBox(height: 24),
@@ -244,6 +290,7 @@ class _DashboardHeader extends ConsumerWidget {
             icon: const Icon(Icons.logout, color: Color(0xFFEF4444)),
             tooltip: 'Đăng xuất',
             onPressed: () async {
+              LocalStorageService().clearAll();
               await AuthService().signOut();
               if (!context.mounted) return;
               ref.read(userProfileProvider.notifier).state = null;
@@ -352,11 +399,17 @@ class _ActivityItem {
   final String productName;
   final String detail;
   final String time;
+  final String zone;
+  final String docId;
+  final Map<String, dynamic> rawData;
   const _ActivityItem({
     required this.type,
     required this.productName,
     required this.detail,
     required this.time,
+    required this.zone,
+    required this.docId,
+    required this.rawData,
   });
 }
 
@@ -368,32 +421,138 @@ class _ActivityTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final isImport = item.type == 'import';
     final dotColor = isImport ? AppColors.green : AppColors.red;
+    final prefix = isImport ? 'NK' : 'XK';
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-        child: Row(
-          children: [
-            Container(
-              width: 10,
-              height: 10,
-              decoration: BoxDecoration(color: dotColor, shape: BoxShape.circle),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(item.productName, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14, color: AppColors.textPrimary)),
-                  const SizedBox(height: 2),
-                  Text(item.detail, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-                ],
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () => _showDetail(context, item),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+          child: Row(
+            children: [
+              Container(
+                width: 10,
+                height: 10,
+                decoration: BoxDecoration(color: dotColor, shape: BoxShape.circle),
               ),
-            ),
-            const SizedBox(width: 8),
-            Text(item.time, style: const TextStyle(fontSize: 11, color: AppColors.textMuted)),
-          ],
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(item.productName, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14, color: AppColors.textPrimary)),
+                    const SizedBox(height: 2),
+                    Text('Khu ${item.zone} — ${item.rawData['items'] ?? 0} sp — $prefix-${item.docId.length >= 4 ? item.docId.substring(0, 4).toUpperCase() : '0000'}', style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(item.time, style: const TextStyle(fontSize: 11, color: AppColors.textMuted)),
+            ],
+          ),
         ),
+      ),
+    );
+  }
+
+  void _showDetail(BuildContext context, _ActivityItem item) {
+    final data = item.rawData;
+    final isImport = item.type == 'import';
+    final products = data['products'] as List<dynamic>? ?? [];
+    final createdAt = data['createdAt'];
+    String timeStr = '';
+    if (createdAt is Timestamp) {
+      final dt = createdAt.toDate();
+      timeStr = '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+    } else if (createdAt is String) {
+      final dt = DateTime.tryParse(createdAt);
+      if (dt != null) timeStr = '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+    }
+    final prefix = isImport ? 'NK' : 'XK';
+    final code = '$prefix-${item.docId.length >= 4 ? item.docId.substring(0, 4).toUpperCase() : '0000'}';
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (_) => DraggableScrollableSheet(
+        initialChildSize: 0.6,
+        minChildSize: 0.3,
+        maxChildSize: 0.9,
+        expand: false,
+        builder: (context, scrollController) => SingleChildScrollView(
+          controller: scrollController,
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Icon(isImport ? Icons.download_rounded : Icons.upload_rounded, color: isImport ? AppColors.green : AppColors.red, size: 22),
+                    const SizedBox(width: 8),
+                    Text(isImport ? 'Phiếu nhập kho' : 'Phiếu xuất kho', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                _detailRow('Mã phiếu', code),
+                _detailRow('Khu vực', 'Khu ${item.zone}'),
+                _detailRow('Số lượng', '${data['items'] ?? 0} sản phẩm'),
+                if (isImport) _detailRow('Nhà cung cấp', (data['supplier'] as String?)?.isNotEmpty == true ? data['supplier'] : 'NCC không tên'),
+                if (!isImport) _detailRow('Khách hàng', (data['customer'] as String?)?.isNotEmpty == true ? data['customer'] : 'Khách lẻ'),
+                _detailRow('Ghi chú', (data['note'] as String?)?.isNotEmpty == true ? data['note'] : 'Không có'),
+                _detailRow('Trạng thái', (data['status'] as String?)?.isNotEmpty == true ? data['status']! : 'Đã hoàn thành'),
+                if (timeStr.isNotEmpty) _detailRow('Thời gian', timeStr),
+                if (products.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  const Text('Sản phẩm', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                  const SizedBox(height: 8),
+                  ...products.map((p) => Card(
+                    margin: const EdgeInsets.only(bottom: 6),
+                    child: ListTile(
+                      dense: true,
+                      leading: CircleAvatar(
+                        backgroundColor: isImport ? AppColors.successLight : AppColors.errorLight,
+                        child: Icon(isImport ? Icons.add : Icons.remove, color: isImport ? AppColors.green : AppColors.red, size: 18),
+                      ),
+                      title: Text(p['name'] as String? ?? '', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+                      subtitle: Text('Barcode: ${p['barcode'] ?? ''} — SL: ${p['quantity'] ?? 0} — Khu: ${p['zone'] ?? ''}', style: const TextStyle(fontSize: 11)),
+                    ),
+                  )),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _detailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 110,
+            child: Text(label, style: const TextStyle(color: AppColors.textMuted, fontSize: 13)),
+          ),
+          Expanded(
+            child: Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+          ),
+        ],
       ),
     );
   }

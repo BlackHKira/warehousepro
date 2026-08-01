@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/user_profile_provider.dart';
+import '../providers/selected_tab_provider.dart';
 import '../providers/warehouse_provider.dart';
 import '../services/auth_service.dart';
+import '../services/local_storage_service.dart';
 import '../theme/app_theme.dart';
 import 'dashboard_screen.dart';
 import 'import_screen.dart';
@@ -23,8 +25,6 @@ class MainShell extends ConsumerStatefulWidget {
 }
 
 class _MainShellState extends ConsumerState<MainShell> {
-  int _selectedIndex = 0;
-
   @override
   void initState() {
     super.initState();
@@ -37,6 +37,8 @@ class _MainShellState extends ConsumerState<MainShell> {
         role: isAdmin ? AppRole.admin : AppRole.staff,
         rawRole: widget.initialRole,
       );
+      final savedTab = LocalStorageService().getTabIndex();
+      ref.read(selectedTabProvider.notifier).state = savedTab;
     });
   }
 
@@ -46,12 +48,13 @@ class _MainShellState extends ConsumerState<MainShell> {
     final isAdmin = profile?.isAdmin ?? (widget.initialRole != 'Thủ kho');
 
     final tabs = isAdmin ? _adminTabs : _staffTabs;
-    final selectedIndex = _selectedIndex < tabs.length ? _selectedIndex : 0;
+    final selectedIndex = ref.watch(selectedTabProvider);
+    final safeIndex = selectedIndex < tabs.length ? selectedIndex : 0;
     final warehouse = ref.watch(warehouseProvider);
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(tabs[selectedIndex].label),
+        title: Text(tabs[safeIndex].label),
         actions: [
           if (warehouse.isSyncing)
             const Padding(
@@ -66,9 +69,9 @@ class _MainShellState extends ConsumerState<MainShell> {
             GestureDetector(
               onTap: () => ref.read(warehouseProvider.notifier).syncData(),
               child: Container(
-                margin: const EdgeInsets.only(right: 4),
+                margin: const EdgeInsets.only(right: 8),
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 8,
+                  horizontal: 10,
                   vertical: 6,
                 ),
                 decoration: BoxDecoration(
@@ -83,7 +86,7 @@ class _MainShellState extends ConsumerState<MainShell> {
                       size: 16,
                       color: AppColors.orange,
                     ),
-                    const SizedBox(width: 2),
+                    const SizedBox(width: 4),
                     Text(
                       '${warehouse.pendingSync}',
                       style: const TextStyle(
@@ -100,9 +103,9 @@ class _MainShellState extends ConsumerState<MainShell> {
             GestureDetector(
               onTap: () => ref.read(warehouseProvider.notifier).syncData(),
               child: Container(
-                margin: const EdgeInsets.only(right: 4),
+                margin: const EdgeInsets.only(right: 8),
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 8,
+                  horizontal: 10,
                   vertical: 6,
                 ),
                 decoration: BoxDecoration(
@@ -113,7 +116,7 @@ class _MainShellState extends ConsumerState<MainShell> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(Icons.sync, size: 16, color: AppColors.green),
-                    SizedBox(width: 2),
+                    SizedBox(width: 4),
                     Text(
                       'Đã sync',
                       style: TextStyle(
@@ -160,6 +163,7 @@ class _MainShellState extends ConsumerState<MainShell> {
                     ),
                   );
                 case 'logout':
+                  LocalStorageService().clearAll();
                   await AuthService().signOut();
                   if (!context.mounted) return;
                   ref.read(userProfileProvider.notifier).state = null;
@@ -195,15 +199,16 @@ class _MainShellState extends ConsumerState<MainShell> {
           ),
         ],
       ),
-      body: SafeArea(
-        child: IndexedStack(
-          index: selectedIndex,
-          children: tabs.map((t) => t.screen).toList(),
-        ),
+      body: IndexedStack(
+        index: safeIndex,
+        children: tabs.map((t) => t.screen).toList(),
       ),
       bottomNavigationBar: NavigationBar(
-        selectedIndex: selectedIndex,
-        onDestinationSelected: (i) => setState(() => _selectedIndex = i),
+        selectedIndex: safeIndex,
+        onDestinationSelected: (i) {
+          ref.read(selectedTabProvider.notifier).state = i;
+          LocalStorageService().saveTabIndex(i);
+        },
         destinations: tabs
             .map(
               (t) => NavigationDestination(

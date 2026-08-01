@@ -207,12 +207,21 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
         );
     if (!mounted) return;
     if (ok) {
+      setState(() {
+        _items.clear();
+        _supplierController.clear();
+        _noteController.clear();
+      });
+      ref.read(selectedTabProvider.notifier).state = 0;
+      await Future.delayed(const Duration(milliseconds: 50));
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Đã lưu phiếu nhập — $totalQty sản phẩm'), behavior: SnackBarBehavior.floating, backgroundColor: AppColors.green),
       );
-      ref.read(selectedTabProvider.notifier).state = 0;
     } else {
       final err = ref.read(warehouseProvider).syncError ?? 'Không xác định';
+      await Future.delayed(const Duration(milliseconds: 50));
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Lỗi lưu: $err'), behavior: SnackBarBehavior.floating, backgroundColor: AppColors.red),
       );

@@ -297,7 +297,31 @@ class WarehouseNotifier extends StateNotifier<WarehouseState> {
           await _productService.updateStockByBarcode(barcode, delta);
         }
 
-        await _pullFromFirestore();
+        final optimisticEntry = <String, dynamic>{
+          'id': 'pending-${DateTime.now().millisecondsSinceEpoch}',
+          'firestoreId': 'pending',
+          'type': type,
+          'supplier': type == 'import' ? supplier : null,
+          'customer': type == 'export' ? customer : null,
+          'items': itemCount,
+          'zone': zone,
+          'products': products,
+          'note': note,
+          'status': status,
+          'syncStatus': 'synced',
+          'createdAt': now.toIso8601String(),
+        };
+        if (type == 'import') {
+          state = state.copyWith(
+            recentImports: [optimisticEntry, ...state.recentImports],
+            todayImports: state.todayImports + itemCount,
+          );
+        } else {
+          state = state.copyWith(
+            recentExports: [optimisticEntry, ...state.recentExports],
+            todayExports: state.todayExports + itemCount,
+          );
+        }
       } else {
         final entry = {
           'type': type,
@@ -363,6 +387,10 @@ class WarehouseNotifier extends StateNotifier<WarehouseState> {
 
   void clearSyncError() {
     state = state.copyWith(syncError: null);
+  }
+
+  Future<void> refreshFromFirestore() async {
+    await _pullFromFirestore();
   }
 }
 

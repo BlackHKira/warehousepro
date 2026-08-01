@@ -5,6 +5,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'main_shell.dart';
 import '../theme/app_theme.dart';
+import '../services/local_storage_service.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -52,16 +53,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final phone = _phoneController.text.trim();
     final password = _passwordController.text;
 
-    debugPrint('REGISTER: Starting registration...');
-    debugPrint('REGISTER: Name=$name, Email=$email, Phone=$phone');
-
     try {
       final cred = await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
-      debugPrint('REGISTER: Auth success, UID=${cred.user!.uid}');
-
       await FirebaseFirestore.instanceFor(
         app: Firebase.app(),
         databaseId: 'warehousepro-db',
@@ -76,9 +72,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
             'termsAccepted': true,
             'lastActive': FieldValue.serverTimestamp(),
           });
-      debugPrint('REGISTER: Firestore user saved');
 
       if (!mounted) return;
+      LocalStorageService().saveRole(_selectedRole);
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
@@ -86,7 +82,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
         ),
       );
     } on FirebaseAuthException catch (e) {
-      debugPrint('REGISTER: FirebaseAuthException code=${e.code} msg=${e.message}');
       if (!mounted) return;
       String msg;
       switch (e.code) {
@@ -106,7 +101,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
         SnackBar(content: Text(msg), backgroundColor: AppColors.red),
       );
     } catch (e) {
-      debugPrint('REGISTER: General error: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

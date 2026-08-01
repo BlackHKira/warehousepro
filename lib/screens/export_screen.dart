@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/zone.dart';
 import '../providers/warehouse_provider.dart' show warehouseProvider;
 import '../providers/zone_provider.dart' show zonesProvider;
+import '../providers/selected_tab_provider.dart';
 import '../models/product.dart';
 import '../providers/product_provider.dart';
 import '../services/zone_service.dart' show ZoneService;
@@ -328,6 +329,13 @@ class _CreateExportTabState extends ConsumerState<_CreateExportTab> {
         );
     if (!mounted) return;
     if (ok) {
+      setState(() {
+        _items.clear();
+        _customerController.clear();
+      });
+      ref.read(selectedTabProvider.notifier).state = 0;
+      await Future.delayed(const Duration(milliseconds: 50));
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Đã lưu phiếu xuất — $totalQty sản phẩm'),
@@ -335,9 +343,10 @@ class _CreateExportTabState extends ConsumerState<_CreateExportTab> {
           backgroundColor: AppColors.red,
         ),
       );
-      Navigator.pop(context);
     } else {
       final err = ref.read(warehouseProvider).syncError ?? 'Không xác định';
+      await Future.delayed(const Duration(milliseconds: 50));
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Lỗi lưu: $err'),
