@@ -108,17 +108,25 @@ class ProductService {
     return sampleProducts.where((p) => p.isLowStock).toList();
   }
 
-  Future<void> updateStockByBarcode(String barcode, int delta) async {
+  Future<void> updateStockByBarcode(
+    String barcode,
+    int delta, {
+    String? zone,
+  }) async {
     final snapshot = await _collection
         .where('barcode', isEqualTo: barcode)
         .limit(1)
         .get();
     if (snapshot.docs.isEmpty) return;
     final doc = snapshot.docs.first;
-    await doc.reference.update({
+    final update = <String, dynamic>{
       'stock': FieldValue.increment(delta),
       'updatedAt': FieldValue.serverTimestamp(),
-    });
+    };
+    if (zone != null && zone.isNotEmpty) {
+      update['zone'] = zone;
+    }
+    await doc.reference.update(update);
   }
 
   Future<String?> checkExportStock(List<Map<String, dynamic>> products) async {

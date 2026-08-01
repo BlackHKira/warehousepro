@@ -15,6 +15,9 @@ import 'admin_inventory_screen.dart';
 import 'admin_reports_screen.dart';
 import 'admin_staff_screen.dart';
 import 'admin_zones_screen.dart';
+import 'analyst_dashboard_screen.dart';
+import 'transaction_history_screen.dart';
+import 'report_export_screen.dart';
 
 class MainShell extends ConsumerStatefulWidget {
   final String initialRole;
@@ -30,11 +33,12 @@ class _MainShellState extends ConsumerState<MainShell> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      final isAdmin = widget.initialRole != 'Thủ kho';
+      final role = _resolveRole(widget.initialRole);
+      final isAdmin = role == AppRole.admin;
       ref.read(userProfileProvider.notifier).state = UserProfileState(
         name: isAdmin ? 'Admin' : 'User',
         email: isAdmin ? 'admin@whpro.com' : 'user@whpro.com',
-        role: isAdmin ? AppRole.admin : AppRole.staff,
+        role: role,
         rawRole: widget.initialRole,
       );
       final savedTab = LocalStorageService().getTabIndex();
@@ -45,9 +49,13 @@ class _MainShellState extends ConsumerState<MainShell> {
   @override
   Widget build(BuildContext context) {
     final profile = ref.watch(userProfileProvider);
-    final isAdmin = profile?.isAdmin ?? (widget.initialRole != 'Thủ kho');
+    final role = profile?.role ?? _resolveRole(widget.initialRole);
 
-    final tabs = isAdmin ? _adminTabs : _staffTabs;
+    final tabs = switch (role) {
+      AppRole.admin => _adminTabs,
+      AppRole.accountant => _analystTabs,
+      AppRole.staff => _staffTabs,
+    };
     final selectedIndex = ref.watch(selectedTabProvider);
     final safeIndex = selectedIndex < tabs.length ? selectedIndex : 0;
     final warehouse = ref.watch(warehouseProvider);
@@ -279,6 +287,50 @@ const _adminTabs = [
     'Khu vực',
   ),
 ];
+
+const _analystTabs = [
+  _TabDef(
+    AnalystDashboardScreen(embedded: true),
+    Icons.dashboard_outlined,
+    Icons.dashboard,
+    'Tổng quan',
+  ),
+  _TabDef(
+    AdminInventoryScreen(embedded: true),
+    Icons.inventory_2_outlined,
+    Icons.inventory_2,
+    'Tồn kho',
+  ),
+  _TabDef(
+    AdminReportsScreen(embedded: true),
+    Icons.bar_chart_outlined,
+    Icons.bar_chart,
+    'Báo cáo',
+  ),
+  _TabDef(
+    TransactionHistoryScreen(embedded: true),
+    Icons.history_outlined,
+    Icons.history,
+    'Lịch sử',
+  ),
+  _TabDef(
+    ReportExportScreen(embedded: true),
+    Icons.file_download_outlined,
+    Icons.file_download,
+    'Xuất báo cáo',
+  ),
+];
+
+AppRole _resolveRole(String rawRole) {
+  switch (rawRole) {
+    case 'Quản lý':
+      return AppRole.admin;
+    case 'Kế toán':
+      return AppRole.accountant;
+    default:
+      return AppRole.staff;
+  }
+}
 
 Widget _infoRow(IconData icon, String label, String value) {
   return Row(
