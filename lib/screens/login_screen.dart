@@ -4,6 +4,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'main_shell.dart';
 import 'register_screen.dart';
 import '../theme/app_theme.dart';
+import '../services/local_storage_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -24,10 +25,11 @@ class _LoginScreenState extends State<LoginScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final user = FirebaseAuth.instance.currentUser;
-      if (user != null) {
+      final savedRole = LocalStorageService().getRole();
+      if (user != null || savedRole != null) {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const MainShell(initialRole: 'Thủ kho')),
+          MaterialPageRoute(builder: (_) => MainShell(initialRole: savedRole ?? 'Thủ kho')),
         );
       }
     });
@@ -50,6 +52,7 @@ class _LoginScreenState extends State<LoginScreen> {
     if (email == 'admin@gmail.com' && password == 'admin123') {
       await Future.delayed(const Duration(milliseconds: 600));
       if (!mounted) return;
+      LocalStorageService().saveRole('Quản lý');
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
@@ -63,6 +66,7 @@ class _LoginScreenState extends State<LoginScreen> {
     if (email == 'user@gmail.com' && password == 'user123') {
       await Future.delayed(const Duration(milliseconds: 600));
       if (!mounted) return;
+      LocalStorageService().saveRole('Thủ kho');
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
@@ -79,6 +83,7 @@ class _LoginScreenState extends State<LoginScreen> {
         password: password,
       );
       if (!mounted) return;
+      LocalStorageService().saveRole('Thủ kho');
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
@@ -120,6 +125,7 @@ class _LoginScreenState extends State<LoginScreen> {
       );
       await FirebaseAuth.instance.signInWithCredential(credential);
       if (!mounted) return;
+      LocalStorageService().saveRole('Thủ kho');
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(

@@ -4,6 +4,7 @@ import '../providers/user_profile_provider.dart';
 import '../providers/selected_tab_provider.dart';
 import '../providers/warehouse_provider.dart';
 import '../services/auth_service.dart';
+import '../services/local_storage_service.dart';
 import '../theme/app_theme.dart';
 import 'dashboard_screen.dart';
 import 'import_screen.dart';
@@ -36,6 +37,8 @@ class _MainShellState extends ConsumerState<MainShell> {
         role: isAdmin ? AppRole.admin : AppRole.staff,
         rawRole: widget.initialRole,
       );
+      final savedTab = LocalStorageService().getTabIndex();
+      ref.read(selectedTabProvider.notifier).state = savedTab;
     });
   }
 
@@ -160,6 +163,7 @@ class _MainShellState extends ConsumerState<MainShell> {
                     ),
                   );
                 case 'logout':
+                  LocalStorageService().clearAll();
                   await AuthService().signOut();
                   if (!context.mounted) return;
                   ref.read(userProfileProvider.notifier).state = null;
@@ -201,7 +205,10 @@ class _MainShellState extends ConsumerState<MainShell> {
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: safeIndex,
-        onDestinationSelected: (i) => ref.read(selectedTabProvider.notifier).state = i,
+        onDestinationSelected: (i) {
+          ref.read(selectedTabProvider.notifier).state = i;
+          LocalStorageService().saveTabIndex(i);
+        },
         destinations: tabs
             .map(
               (t) => NavigationDestination(

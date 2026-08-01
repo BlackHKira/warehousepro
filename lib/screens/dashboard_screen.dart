@@ -8,6 +8,7 @@ import '../providers/warehouse_provider.dart' show warehouseProvider;
 import '../providers/product_provider.dart';
 import '../providers/user_profile_provider.dart';
 import '../services/auth_service.dart';
+import '../services/local_storage_service.dart';
 import '../theme/app_theme.dart';
 import 'import_screen.dart';
 import 'export_screen.dart';
@@ -288,6 +289,7 @@ class _DashboardHeader extends ConsumerWidget {
             icon: const Icon(Icons.logout, color: Color(0xFFEF4444)),
             tooltip: 'Đăng xuất',
             onPressed: () async {
+              LocalStorageService().clearAll();
               await AuthService().signOut();
               if (!context.mounted) return;
               ref.read(userProfileProvider.notifier).state = null;

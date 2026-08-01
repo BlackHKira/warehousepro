@@ -5,6 +5,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'main_shell.dart';
 import '../theme/app_theme.dart';
+import '../services/local_storage_service.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -73,6 +74,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           });
 
       if (!mounted) return;
+      LocalStorageService().saveRole(_selectedRole);
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
