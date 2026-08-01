@@ -269,14 +269,6 @@ class WarehouseNotifier extends StateNotifier<WarehouseState> {
       final status = type == 'export' ? 'pending' : null;
 
       if (kIsWeb) {
-        if (type == 'export') {
-          final stockError = await _productService.checkExportStock(products);
-          if (stockError != null) {
-            state = state.copyWith(syncError: stockError);
-            return false;
-          }
-        }
-
         await _firestore.transactions.add({
           'type': type,
           'supplier': type == 'import' ? supplier : null,
@@ -292,9 +284,14 @@ class WarehouseNotifier extends StateNotifier<WarehouseState> {
         for (final item in products) {
           final barcode = item['barcode'] as String? ?? '';
           final qty = (item['quantity'] as num?)?.toInt() ?? 0;
+          final itemZone = item['zone'] as String?;
           if (barcode.isEmpty || qty == 0) continue;
           final delta = type == 'import' ? qty : -qty;
-          await _productService.updateStockByBarcode(barcode, delta);
+          final stockError = await _productService.updateStockByBarcode(barcode, delta, zone: itemZone);
+          if (stockError != null) {
+            state = state.copyWith(syncError: stockError);
+            return false;
+          }
         }
 
         final optimisticEntry = <String, dynamic>{
@@ -361,8 +358,9 @@ class WarehouseNotifier extends StateNotifier<WarehouseState> {
     try {
       final pending = await _db.getPendingTransactions();
       for (final entry in pending) {
+        final type = entry['type'] as String? ?? 'import';
         final docRef = await _firestore.transactions.add({
-          'type': entry['type'],
+          'type': type,
           'supplier': entry['supplier'],
           'customer': entry['customer'],
           'items': entry['items'],
@@ -372,6 +370,18 @@ class WarehouseNotifier extends StateNotifier<WarehouseState> {
           'status': entry['status'],
           'createdAt': FieldValue.serverTimestamp(),
         });
+
+        final products = (entry['products'] as List<dynamic>?) ?? [];
+        for (final item in products) {
+          final map = item as Map<String, dynamic>;
+          final barcode = map['barcode'] as String? ?? '';
+          final qty = (map['quantity'] as num?)?.toInt() ?? 0;
+          final itemZone = map['zone'] as String?;
+          if (barcode.isEmpty || qty == 0) continue;
+          final delta = type == 'import' ? qty : -qty;
+          await _productService.updateStockByBarcode(barcode, delta, zone: itemZone);
+        }
+
         final localId = entry['localId'] ?? entry['id'];
         if (localId is int) {
           await _db.markAsSynced(localId, docRef.id);
