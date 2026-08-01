@@ -10,6 +10,7 @@ import 'dashboard_screen.dart';
 import 'import_screen.dart';
 import 'export_screen.dart';
 import 'search_screen.dart';
+import 'delivery_screen.dart';
 import 'login_screen.dart';
 import 'admin_inventory_screen.dart';
 import 'admin_reports_screen.dart';
@@ -206,6 +207,30 @@ class _MainShellState extends ConsumerState<MainShell> {
       bottomNavigationBar: NavigationBar(
         selectedIndex: safeIndex,
         onDestinationSelected: (i) {
+          if (i == 4) {
+            showDialog(
+              context: context,
+              builder: (_) => AlertDialog(
+                title: const Text('Chú ý'),
+                content: const Text('Trang chỉ dành cho ship'),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Thoát'),
+                  ),
+                  FilledButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      ref.read(selectedTabProvider.notifier).state = i;
+                      LocalStorageService().saveTabIndex(i);
+                    },
+                    child: const Text('OK'),
+                  ),
+                ],
+              ),
+            );
+            return;
+          }
           ref.read(selectedTabProvider.notifier).state = i;
           LocalStorageService().saveTabIndex(i);
         },
@@ -251,6 +276,12 @@ const _staffTabs = [
     'Xuất',
   ),
   _TabDef(SearchScreen(embedded: true), Icons.search, Icons.search, 'Tra cứu'),
+  _TabDef(
+    DeliveryScreen(embedded: true),
+    Icons.local_shipping_outlined,
+    Icons.local_shipping,
+    'Giao hàng',
+  ),
 ];
 
 const _adminTabs = [
