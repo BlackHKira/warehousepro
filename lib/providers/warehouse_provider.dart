@@ -336,13 +336,13 @@ class WarehouseNotifier extends StateNotifier<WarehouseState> {
             final qty = (item['quantity'] as num?)?.toInt() ?? 0;
             if (barcode.isEmpty || qty == 0) continue;
             final delta = type == 'import' ? qty : -qty;
-            await _productService.updateStockByBarcode(barcode, delta);
+            await _productService.updateStockByBarcode(barcode, delta, zone: item['zone'] as String?);
           }
         }
 
         final optimisticEntry = <String, dynamic>{
           'id': 'pending-${DateTime.now().millisecondsSinceEpoch}',
-          'firestoreId': isPendingExport ? 'pending' : 'pending',
+          'firestoreId': 'pending',
           'type': type,
           'supplier': type == 'import' ? supplier : null,
           'customer': type == 'export' ? customer : null,
