@@ -40,6 +40,7 @@ class _CreateExportTab extends ConsumerStatefulWidget {
 class _CreateExportTabState extends ConsumerState<_CreateExportTab> {
   final _items = <_ExportItem>[];
   final _customerController = TextEditingController();
+  String _selectedStatus = 'pending';
 
   @override
   void dispose() {
@@ -256,12 +257,14 @@ class _CreateExportTabState extends ConsumerState<_CreateExportTab> {
               : _customerController.text.trim(),
           zone: mainZone,
           products: productsList,
+          status: _selectedStatus,
         );
     if (!mounted) return;
     if (ok) {
       setState(() {
         _items.clear();
         _customerController.clear();
+        _selectedStatus = 'pending';
       });
       ref.read(selectedTabProvider.notifier).state = 0;
       await Future.delayed(const Duration(milliseconds: 50));
@@ -315,6 +318,22 @@ class _CreateExportTabState extends ConsumerState<_CreateExportTab> {
                     prefixIcon: Icon(Icons.person),
                     isDense: true,
                   ),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  value: _selectedStatus,
+                  decoration: const InputDecoration(
+                    labelText: 'Trạng thái',
+                    prefixIcon: Icon(Icons.flag_outlined),
+                    isDense: true,
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'pending', child: Text('Chờ xử lý')),
+                    DropdownMenuItem(value: 'completed', child: Text('Hoàn thành')),
+                  ],
+                  onChanged: (v) {
+                    if (v != null) setState(() => _selectedStatus = v);
+                  },
                 ),
               ],
             ),

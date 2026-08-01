@@ -504,7 +504,7 @@ class _ActivityTile extends StatelessWidget {
                 if (isImport) _detailRow('Nhà cung cấp', (data['supplier'] as String?)?.isNotEmpty == true ? data['supplier'] : 'NCC không tên'),
                 if (!isImport) _detailRow('Khách hàng', (data['customer'] as String?)?.isNotEmpty == true ? data['customer'] : 'Khách lẻ'),
                 _detailRow('Ghi chú', (data['note'] as String?)?.isNotEmpty == true ? data['note'] : 'Không có'),
-                _detailRow('Trạng thái', (data['status'] as String?)?.isNotEmpty == true ? data['status']! : 'Đã hoàn thành'),
+                _detailRow('Trạng thái', _mapStatus((data['status'] as String?))),
                 if (timeStr.isNotEmpty) _detailRow('Thời gian', timeStr),
                 if (products.isNotEmpty) ...[
                   const SizedBox(height: 12),
@@ -529,6 +529,17 @@ class _ActivityTile extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  String _mapStatus(String? status) {
+    switch (status) {
+      case 'pending':
+        return 'Chờ xử lý';
+      case 'completed':
+        return 'Hoàn thành';
+      default:
+        return 'Đã hoàn thành';
+    }
   }
 
   Widget _detailRow(String label, String value) {
