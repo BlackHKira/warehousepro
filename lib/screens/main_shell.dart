@@ -66,9 +66,9 @@ class _MainShellState extends ConsumerState<MainShell> {
             GestureDetector(
               onTap: () => ref.read(warehouseProvider.notifier).syncData(),
               child: Container(
-                margin: const EdgeInsets.only(right: 8),
+                margin: const EdgeInsets.only(right: 4),
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
+                  horizontal: 8,
                   vertical: 6,
                 ),
                 decoration: BoxDecoration(
@@ -83,7 +83,7 @@ class _MainShellState extends ConsumerState<MainShell> {
                       size: 16,
                       color: AppColors.orange,
                     ),
-                    const SizedBox(width: 4),
+                    const SizedBox(width: 2),
                     Text(
                       '${warehouse.pendingSync}',
                       style: const TextStyle(
@@ -100,9 +100,9 @@ class _MainShellState extends ConsumerState<MainShell> {
             GestureDetector(
               onTap: () => ref.read(warehouseProvider.notifier).syncData(),
               child: Container(
-                margin: const EdgeInsets.only(right: 8),
+                margin: const EdgeInsets.only(right: 4),
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
+                  horizontal: 8,
                   vertical: 6,
                 ),
                 decoration: BoxDecoration(
@@ -113,7 +113,7 @@ class _MainShellState extends ConsumerState<MainShell> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(Icons.sync, size: 16, color: AppColors.green),
-                    SizedBox(width: 4),
+                    SizedBox(width: 2),
                     Text(
                       'Đã sync',
                       style: TextStyle(
@@ -195,9 +195,11 @@ class _MainShellState extends ConsumerState<MainShell> {
           ),
         ],
       ),
-      body: IndexedStack(
-        index: selectedIndex,
-        children: tabs.map((t) => t.screen).toList(),
+      body: SafeArea(
+        child: IndexedStack(
+          index: selectedIndex,
+          children: tabs.map((t) => t.screen).toList(),
+        ),
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: selectedIndex,

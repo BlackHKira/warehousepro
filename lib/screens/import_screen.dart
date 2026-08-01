@@ -331,15 +331,17 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
                   ],
                 ),
                 subtitle: Text(item.barcode, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(icon: const Icon(Icons.remove_circle_outline, size: 20), onPressed: () => setState(() { if (item.qty > 1) item.qty--; })),
-                    Text('${item.qty}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                    IconButton(icon: const Icon(Icons.add_circle_outline, size: 20), onPressed: () => setState(() => item.qty++)),
-                    const SizedBox(width: 4),
-                    IconButton(icon: Icon(Icons.delete_outline, size: 20, color: AppColors.red), onPressed: () => setState(() => _items.removeAt(i))),
-                  ],
+                trailing: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(icon: const Icon(Icons.remove_circle_outline, size: 20), onPressed: () => setState(() { if (item.qty > 1) item.qty--; })),
+                      Text('${item.qty}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      IconButton(icon: const Icon(Icons.add_circle_outline, size: 20), onPressed: () => setState(() => item.qty++)),
+                      IconButton(icon: Icon(Icons.delete_outline, size: 20, color: AppColors.red), onPressed: () => setState(() => _items.removeAt(i))),
+                    ],
+                  ),
                 ),
               ),
             ),
