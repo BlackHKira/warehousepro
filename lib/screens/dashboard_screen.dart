@@ -791,35 +791,3 @@ Map<String, int> _calculateMonthlyExportQty(
   }
   return result;
 }
-
-String _firstProductName(Map<String, dynamic> t) {
-  final products = t['products'] as List<dynamic>? ?? [];
-  if (products.isNotEmpty) {
-    final name = products[0]['name'] as String?;
-    if (name != null && name.isNotEmpty) return name;
-  }
-  if (t['type'] == 'import') {
-    return t['supplier'] as String? ?? 'Nhập kho';
-  }
-  return t['customer'] as String? ?? 'Xuất kho';
-}
-
-String _transactionCode(Map<String, dynamic> t, String prefix) {
-  final firestoreId = t['firestoreId'] as String?;
-  final id = t['id'];
-  if (firestoreId != null && firestoreId.length >= 4) {
-    return '$prefix-${firestoreId.substring(0, 4).toUpperCase()}';
-  }
-  if (id != null) {
-    return '$prefix-${id.toString().padLeft(4, '0')}';
-  }
-  return '$prefix-0000';
-}
-
-String _formatTime(dynamic t) {
-  if (t is String) {
-    final dt = DateTime.tryParse(t);
-    if (dt != null) return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
-  }
-  return '';
-}
