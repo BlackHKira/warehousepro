@@ -69,11 +69,12 @@ class ProductDetailScreen extends ConsumerWidget {
                   ],
                   const SizedBox(height: 20),
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
-                      _stockChip(label: 'Tồn kho', value: '${product.stockInCases} thùng', bgColor: AppColors.primaryLight, textColor: AppColors.primary),
-                      _stockChip(label: 'Khả dụng', value: '$available', bgColor: AppColors.successLight, textColor: AppColors.successDark),
-                      _stockChip(label: 'Chênh lệch', value: discrepancy >= 0 ? '+$discrepancy' : '$discrepancy', bgColor: AppColors.errorLight, textColor: AppColors.error),
+                      Expanded(child: _stockChip(label: 'Tồn kho', value: '${product.stockInCases} thùng', bgColor: AppColors.primaryLight, textColor: AppColors.primary)),
+                      const SizedBox(width: 8),
+                      Expanded(child: _stockChip(label: 'Khả dụng', value: '$available', bgColor: AppColors.successLight, textColor: AppColors.successDark)),
+                      const SizedBox(width: 8),
+                      Expanded(child: _stockChip(label: 'Chênh lệch', value: discrepancy >= 0 ? '+$discrepancy' : '$discrepancy', bgColor: AppColors.errorLight, textColor: AppColors.error)),
                     ],
                   ),
                 ],
@@ -153,14 +154,17 @@ class ProductDetailScreen extends ConsumerWidget {
 
   Widget _stockChip({required String label, required String value, required Color bgColor, required Color textColor}) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
       decoration: BoxDecoration(
         color: bgColor,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
         children: [
-          Text(value, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24, color: textColor)),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(value, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: textColor)),
+          ),
           const SizedBox(height: 4),
           Text(label, style: TextStyle(fontSize: 12, color: textColor.withValues(alpha: 0.8))),
         ],
