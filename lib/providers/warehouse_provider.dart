@@ -67,6 +67,7 @@ class WarehouseNotifier extends StateNotifier<WarehouseState> {
   Future<void> _initialize() async {
     if (!kIsWeb) await _loadFromSQLite();
     await _pullFromFirestore();
+    if (kIsWeb) await cleanupOldPendingExports();
     if (!kIsWeb) {
       _connectivity.onConnectivityChanged.listen((results) {
         if (!results.contains(ConnectivityResult.none) && state.pendingSync > 0) {
@@ -221,6 +222,7 @@ class WarehouseNotifier extends StateNotifier<WarehouseState> {
     String zone = 'D',
     List<Map<String, dynamic>> products = const [],
     String note = '',
+    String status = 'pending',
   }) async {
     return await _addTransaction(
       'export',
@@ -229,24 +231,60 @@ class WarehouseNotifier extends StateNotifier<WarehouseState> {
       zone: zone,
       products: products,
       note: note,
+      status: status,
     );
   }
 
   Future<bool> updateExportStatus(Map<String, dynamic> order, String newStatus) async {
     try {
-      final localId = order['id'] as int?;
-      final firestoreId = order['firestoreId'] as String?;
+      final rawId = order['id'];
+      final localId = rawId is int ? rawId : null;
+      final rawFirestoreId = order['firestoreId'];
+      var firestoreId = rawFirestoreId is String ? rawFirestoreId : null;
 
-      if (localId != null) {
-        await _db.updateTransactionStatus(localId, newStatus);
-      }
+      final needPushToFirestore = newStatus == 'completed' &&
+          (firestoreId == null || firestoreId.isEmpty || firestoreId == 'pending');
 
-      if (firestoreId != null && firestoreId.isNotEmpty) {
+      if (needPushToFirestore) {
+        final docRef = await _firestore.transactions.add({
+          'type': order['type'],
+          'supplier': order['supplier'],
+          'customer': order['customer'],
+          'items': order['items'],
+          'zone': order['zone'],
+          'products': order['products'],
+          'note': order['note'],
+          'status': 'completed',
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+        firestoreId = docRef.id;
+
+        final products = (order['products'] as List<dynamic>?) ?? [];
+        for (final item in products) {
+          final map = item as Map<String, dynamic>;
+          final barcode = map['barcode'] as String? ?? '';
+          final qty = (map['quantity'] as num?)?.toInt() ?? 0;
+          final itemZone = map['zone'] as String?;
+          if (barcode.isEmpty || qty == 0) continue;
+          await _productService.updateStockByBarcode(barcode, -qty, zone: itemZone);
+        }
+
+        if (localId != null) {
+          await _db.updateTransactionStatus(localId, 'completed');
+        }
+      } else if (firestoreId != null && firestoreId.isNotEmpty && firestoreId != 'pending') {
         await _firestore.transactions.doc(firestoreId).update({'status': newStatus});
+        if (localId != null) {
+          await _db.updateTransactionStatus(localId, newStatus);
+        }
       }
 
-      final all = await _db.getTransactions(limit: 200);
-      _buildState(all);
+      if (kIsWeb) {
+        await _pullFromFirestore();
+      } else {
+        final all = await _db.getTransactions(limit: 200);
+        _buildState(all);
+      }
       return true;
     } catch (e) {
       state = state.copyWith(syncError: 'Lỗi cập nhật trạng thái: $e');
@@ -262,11 +300,12 @@ class WarehouseNotifier extends StateNotifier<WarehouseState> {
     String zone = 'D',
     List<Map<String, dynamic>> products = const [],
     String note = '',
+    String? status,
   }) async {
     try {
       final now = DateTime.now();
 
-      final status = type == 'export' ? 'pending' : null;
+      final effectiveStatus = status ?? (type == 'export' ? 'pending' : null);
 
       if (kIsWeb) {
         if (type == 'export') {
@@ -277,24 +316,28 @@ class WarehouseNotifier extends StateNotifier<WarehouseState> {
           }
         }
 
-        await _firestore.transactions.add({
-          'type': type,
-          'supplier': type == 'import' ? supplier : null,
-          'customer': type == 'export' ? customer : null,
-          'items': itemCount,
-          'zone': zone,
-          'products': products,
-          'note': note,
-          'status': status,
-          'createdAt': FieldValue.serverTimestamp(),
-        });
+        final isPendingExport = type == 'export' && effectiveStatus == 'pending';
 
-        for (final item in products) {
-          final barcode = item['barcode'] as String? ?? '';
-          final qty = (item['quantity'] as num?)?.toInt() ?? 0;
-          if (barcode.isEmpty || qty == 0) continue;
-          final delta = type == 'import' ? qty : -qty;
-          await _productService.updateStockByBarcode(barcode, delta);
+        if (!isPendingExport) {
+          await _firestore.transactions.add({
+            'type': type,
+            'supplier': type == 'import' ? supplier : null,
+            'customer': type == 'export' ? customer : null,
+            'items': itemCount,
+            'zone': zone,
+            'products': products,
+            'note': note,
+            'status': effectiveStatus,
+            'createdAt': FieldValue.serverTimestamp(),
+          });
+
+          for (final item in products) {
+            final barcode = item['barcode'] as String? ?? '';
+            final qty = (item['quantity'] as num?)?.toInt() ?? 0;
+            if (barcode.isEmpty || qty == 0) continue;
+            final delta = type == 'import' ? qty : -qty;
+            await _productService.updateStockByBarcode(barcode, delta, zone: item['zone'] as String?);
+          }
         }
 
         final optimisticEntry = <String, dynamic>{
@@ -307,8 +350,8 @@ class WarehouseNotifier extends StateNotifier<WarehouseState> {
           'zone': zone,
           'products': products,
           'note': note,
-          'status': status,
-          'syncStatus': 'synced',
+          'status': effectiveStatus,
+          'syncStatus': isPendingExport ? 'local_only' : 'synced',
           'createdAt': now.toIso8601String(),
         };
         if (type == 'import') {
@@ -331,14 +374,16 @@ class WarehouseNotifier extends StateNotifier<WarehouseState> {
           'zone': zone,
           'products': products,
           'note': note,
-          'status': status,
-          'syncStatus': 'pending',
+          'status': effectiveStatus,
+          'syncStatus': effectiveStatus == 'pending' ? 'local_only' : 'pending',
           'createdAt': now.toIso8601String(),
         };
         await _db.insertTransaction(entry);
         final all = await _db.getTransactions(limit: 200);
         _buildState(all);
-        await syncData();
+        if (effectiveStatus != 'pending') {
+          await syncData();
+        }
       }
       return true;
     } catch (e) {
@@ -359,7 +404,8 @@ class WarehouseNotifier extends StateNotifier<WarehouseState> {
     }
 
     try {
-      final pending = await _db.getPendingTransactions();
+      final allPending = await _db.getPendingTransactions();
+      final pending = allPending.where((e) => e['syncStatus'] != 'local_only').toList();
       for (final entry in pending) {
         final docRef = await _firestore.transactions.add({
           'type': entry['type'],
@@ -391,6 +437,19 @@ class WarehouseNotifier extends StateNotifier<WarehouseState> {
 
   Future<void> refreshFromFirestore() async {
     await _pullFromFirestore();
+  }
+
+  Future<void> cleanupOldPendingExports() async {
+    try {
+      final snapshot = await _firestore.transactions
+          .where('type', isEqualTo: 'export')
+          .where('status', isEqualTo: 'pending')
+          .get();
+      for (final doc in snapshot.docs) {
+        await doc.reference.update({'status': 'completed'});
+      }
+      await _pullFromFirestore();
+    } catch (_) {}
   }
 }
 
