@@ -10,9 +10,6 @@ jobs:
   analyze-and-build:
     name: Analyze & Build Web
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: warehousepro_fresh
 
     steps:
       - name: Checkout code
