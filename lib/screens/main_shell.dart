@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_core/firebase_core.dart';
 import '../providers/user_profile_provider.dart';
 import '../providers/selected_tab_provider.dart';
 import '../providers/warehouse_provider.dart';
@@ -29,7 +32,7 @@ class _MainShellState extends ConsumerState<MainShell> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
       final isAdmin = widget.initialRole != 'Thủ kho';
       ref.read(userProfileProvider.notifier).state = UserProfileState(
@@ -40,7 +43,47 @@ class _MainShellState extends ConsumerState<MainShell> {
       );
       final savedTab = LocalStorageService().getTabIndex();
       ref.read(selectedTabProvider.notifier).state = savedTab;
+
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        try {
+          final db = FirebaseFirestore.instanceFor(
+            app: Firebase.app(),
+            databaseId: 'warehousepro-db',
+          );
+          final snapshot = await db
+              .collection('users')
+              .where('email', isEqualTo: user.email)
+              .limit(1)
+              .get();
+          if (snapshot.docs.isNotEmpty && mounted) {
+            final data = snapshot.docs.first.data();
+            final appRole = data['role'] != null
+                ? _mapRole(data['role'] as String)
+                : (isAdmin ? AppRole.admin : AppRole.staff);
+            ref.read(userProfileProvider.notifier).state = UserProfileState(
+              name: data['name'] ?? '',
+              email: data['email'] ?? '',
+              role: appRole,
+              rawRole: data['role'] ?? widget.initialRole,
+              phone: data['phone'] ?? '',
+              gender: data['gender'] ?? '',
+            );
+          }
+        } catch (_) {}
+      }
     });
+  }
+
+  AppRole _mapRole(String rawRole) {
+    switch (rawRole) {
+      case 'Quản lý':
+        return AppRole.admin;
+      case 'Kế toán':
+        return AppRole.accountant;
+      default:
+        return AppRole.staff;
+    }
   }
 
   @override
@@ -146,13 +189,17 @@ class _MainShellState extends ConsumerState<MainShell> {
                         children: [
                           _infoRow(
                             Icons.person,
-                            'Họ tên',
+                            'Họ và tên',
                             p?.name ?? 'Người dùng',
                           ),
                           const SizedBox(height: 8),
-                          _infoRow(Icons.email, 'Email', p?.email ?? ''),
+                          _infoRow(Icons.email, 'Gmail', p?.email ?? ''),
                           const SizedBox(height: 8),
-                          _infoRow(Icons.badge, 'Vai trò', p?.rawRole ?? ''),
+                          _infoRow(Icons.phone, 'Số điện thoại', p?.phone ?? ''),
+                          const SizedBox(height: 8),
+                          _infoRow(Icons.wc, 'Giới tính', p?.gender ?? ''),
+                          const SizedBox(height: 8),
+                          _infoRow(Icons.badge, 'Vị trí', p?.rawRole ?? ''),
                         ],
                       ),
                       actions: [
@@ -181,7 +228,7 @@ class _MainShellState extends ConsumerState<MainShell> {
                   children: [
                     Icon(Icons.person_outline, size: 20),
                     SizedBox(width: 10),
-                    Text('Thông tin'),
+                    Text('Xem thông tin'),
                   ],
                 ),
               ),
