@@ -40,7 +40,7 @@ class AdminZoneDetailScreen extends ConsumerWidget {
                       Text(zone.label, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
                       if (zone.description.isNotEmpty)
                         Text(zone.description, style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
-                      Text('$zoneProducts sản phẩm', style: TextStyle(color: AppColors.textSecondary, fontSize: 11)),
+                      Text('${zoneProducts.length} sản phẩm', style: TextStyle(color: AppColors.textSecondary, fontSize: 11)),
                     ],
                   ),
                 ),
@@ -113,11 +113,11 @@ class _ProductCard extends StatelessWidget {
                       children: [
                         const Icon(Icons.qr_code, size: 12, color: AppColors.textMuted),
                         const SizedBox(width: 4),
-                        Text(product.barcode, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                        Flexible(child: Text(product.barcode, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary), overflow: TextOverflow.ellipsis)),
                         const SizedBox(width: 10),
                         const Icon(Icons.location_on, size: 12, color: AppColors.textMuted),
                         const SizedBox(width: 2),
-                        Text(product.location, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                        Flexible(child: Text(product.location, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary), overflow: TextOverflow.ellipsis)),
                       ],
                     ),
                   ],

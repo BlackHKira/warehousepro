@@ -274,6 +274,7 @@ class _DashboardHeader extends ConsumerWidget {
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 const Text('WarehousePro', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18, color: AppColors.textPrimary)),
                 Text('Xin chào, $userName', style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
@@ -337,12 +338,19 @@ class _StatCard extends StatelessWidget {
               child: Icon(icon, color: iconColor, size: 22),
             ),
             const SizedBox(width: 12),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(label, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-                Text(value, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22, color: iconColor)),
-              ],
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(label, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary), overflow: TextOverflow.ellipsis),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(value, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22, color: iconColor)),
+                  ),
+                ],
+              ),
             ),
           ],
         ),

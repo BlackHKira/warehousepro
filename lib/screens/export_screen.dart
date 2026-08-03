@@ -153,8 +153,9 @@ class _CreateExportTabState extends ConsumerState<_CreateExportTab> {
                       setDialogState(() {
                         nameCtrl.text = selected.name;
                         barcodeCtrl.text = selected.barcode;
-                        if (selected.zone.isNotEmpty)
+                        if (selected.zone.isNotEmpty) {
                           selectedZone = selected.zone;
+                        }
                       });
                     }
                   },
@@ -452,27 +453,30 @@ class _CreateExportTabState extends ConsumerState<_CreateExportTab> {
                     color: AppColors.textSecondary,
                   ),
                 ),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.remove_circle_outline, size: 20),
-                      onPressed: () => setState(() {
-                        if (item.qty > 1) item.qty--;
-                      }),
-                    ),
-                    Text(
-                      '${item.qty}',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
+                trailing: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.remove_circle_outline, size: 20),
+                        onPressed: () => setState(() {
+                          if (item.qty > 1) item.qty--;
+                        }),
                       ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.add_circle_outline, size: 20),
-                      onPressed: () => setState(() => item.qty++),
-                    ),
-                  ],
+                      Text(
+                        '${item.qty}',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.add_circle_outline, size: 20),
+                        onPressed: () => setState(() => item.qty++),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
