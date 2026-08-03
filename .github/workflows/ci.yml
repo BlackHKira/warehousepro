@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: [ci, main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  analyze-and-build:
+    name: Analyze & Build Web
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: warehousepro_fresh
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.44.6
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Run dart analyze
+        run: dart analyze lib
+
+      - name: Build web
+        run: flutter build web --no-tree-shake-icons
