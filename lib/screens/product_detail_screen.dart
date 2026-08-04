@@ -47,10 +47,20 @@ class ProductDetailScreen extends ConsumerWidget {
               padding: const EdgeInsets.all(20),
               child: Column(
                 children: [
-                  Container(
-                    width: 72, height: 72,
-                    decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(20)),
-                    child: const Icon(Icons.inventory_2, color: AppColors.primary, size: 40),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: product.imageUrl.isNotEmpty
+                        ? Image.network(product.imageUrl, width: 72, height: 72, fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Container(
+                              width: 72, height: 72,
+                              decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(20)),
+                              child: const Icon(Icons.inventory_2, color: AppColors.primary, size: 40),
+                            ))
+                        : Container(
+                            width: 72, height: 72,
+                            decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(20)),
+                            child: const Icon(Icons.inventory_2, color: AppColors.primary, size: 40),
+                          ),
                   ),
                   const SizedBox(height: 16),
                   Text(product.name, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
