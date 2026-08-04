@@ -117,7 +117,7 @@ class _ProductCard extends StatelessWidget {
                         const SizedBox(width: 10),
                         const Icon(Icons.location_on, size: 12, color: AppColors.textMuted),
                         const SizedBox(width: 2),
-                        Flexible(child: Text(product.location, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary), overflow: TextOverflow.ellipsis)),
+                        Flexible(child: Text(product.zone, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary), overflow: TextOverflow.ellipsis)),
                       ],
                     ),
                   ],
@@ -126,7 +126,7 @@ class _ProductCard extends StatelessWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text(formatStock(product.stock, product.unitPerCase), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: product.isLowStock ? AppColors.red : AppColors.green)),
+                  Text(formatStock(product.stock, product.unitPerCase, product.unit), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: product.isLowStock ? AppColors.red : AppColors.green)),
                 ],
               ),
             ],

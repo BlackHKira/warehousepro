@@ -289,14 +289,14 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                           const SizedBox(width: 12),
                           const Icon(Icons.location_on, size: 12, color: AppColors.textMuted),
                           const SizedBox(width: 2),
-                          Text(p.location, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                          Text(p.zone, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
                         ],
                       ),
                       trailing: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
-                          Text(formatStock(p.stock, p.unitPerCase), style: TextStyle(fontWeight: FontWeight.bold, color: p.isLowStock ? AppColors.red : AppColors.green, fontSize: 16)),
+                          Text(formatStock(p.stock, p.unitPerCase, p.unit), style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.green, fontSize: 16)),
                         ],
                       ),
                     ),

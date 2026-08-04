@@ -39,16 +39,17 @@ class AppColors {
   static const orange = Color(0xFFF59E0B);
 }
 
-String formatStock(int stock, int unitPerCase) {
-  if (unitPerCase <= 1) return '$stock cái';
+String formatStock(int stock, int unitPerCase, [String unit = 'sản phẩm']) {
+  if (unitPerCase <= 1) return '$stock $unit';
   final cases = stock ~/ unitPerCase;
   return '$cases thùng';
 }
 
-String formatStockDetail(int stock, int unitPerCase) {
-  if (unitPerCase <= 1) return '$stock cái';
+String formatStockDetail(int stock, int unitPerCase, [String unit = 'sản phẩm']) {
+  if (unitPerCase <= 1) return '$stock $unit';
   final cases = stock ~/ unitPerCase;
-  return '$cases thùng = $stock cái';
+  final items = cases * unitPerCase;
+  return '$cases thùng = $items $unit';
 }
 
 class AppTheme {

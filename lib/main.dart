@@ -1,15 +1,34 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'firebase_options.dart';
 import 'screens/login_screen.dart';
 import 'services/database_helper.dart';
+import 'services/zone_service.dart';
+import 'seed/seed_firestore.dart';
 import 'theme/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await DatabaseHelper.init();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  final db = FirebaseFirestore.instanceFor(
+    app: Firebase.app(),
+    databaseId: 'warehousepro-db',
+  );
+
+  final zonesSnap = await db.collection('zones').limit(1).get();
+  if (zonesSnap.docs.isEmpty) {
+    await ZoneService().seedDefaultZones();
+  }
+
+  final productsSnap = await db.collection('products').limit(1).get();
+  if (productsSnap.docs.isEmpty) {
+    await SeedFirestore().seedProducts();
+  }
+
   runApp(const ProviderScope(child: WarehouseProApp()));
 }
 

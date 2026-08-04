@@ -24,6 +24,9 @@ class ProductService {
         .map((doc) => Product.fromMap(doc.id, doc.data()))
         .toList();
     if (list.isNotEmpty) return list;
+    for (final p in sampleProducts) {
+      await _collection.add(p.toMap());
+    }
     return sampleProducts;
   }
 
@@ -162,7 +165,7 @@ class ProductService {
       if (product == null) {
         errors.add('$name: không tìm thấy trong kho');
       } else if (product.stock < qty) {
-        errors.add('${product.name}: chỉ còn ${product.stock} (cần $qty)');
+        errors.add('${product.name}: chỉ còn ${product.stock} ${product.unit.toLowerCase()} (cần $qty)');
       }
     }
     return errors.isEmpty ? null : errors.join('\n');

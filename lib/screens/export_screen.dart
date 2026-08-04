@@ -48,10 +48,10 @@ class _CreateExportTabState extends ConsumerState<_CreateExportTab> {
     super.dispose();
   }
 
-  void _addItem(String name, String barcode, int qty, [String zone = 'A1']) {
+  void _addItem(String name, String barcode, int qty, [String zone = 'A1', int unitPerCase = 24]) {
     setState(
       () => _items.add(
-        _ExportItem(name: name, barcode: barcode, qty: qty, zone: zone),
+        _ExportItem(name: name, barcode: barcode, qty: qty, zone: zone, unitPerCase: unitPerCase),
       ),
     );
   }
@@ -94,11 +94,11 @@ class _CreateExportTabState extends ConsumerState<_CreateExportTab> {
               if (products.isEmpty) return;
               final product = products[rng.nextInt(products.length)];
               final qty = 1 + rng.nextInt(10);
-              _addItem(product.name, product.barcode, qty, product.zone);
+              _addItem(product.name, product.barcode, qty, product.zone, product.unitPerCase);
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text(
-                    'Đã quét: ${product.name} — $qty ${product.unit}',
+                    'Đã quét: ${product.name} — $qty thùng',
                   ),
                   behavior: SnackBarBehavior.floating,
                   duration: const Duration(seconds: 1),
@@ -118,6 +118,7 @@ class _CreateExportTabState extends ConsumerState<_CreateExportTab> {
     final qtyCtrl = TextEditingController(text: '1');
     final fallbackZone = zones.isNotEmpty ? zones.first.code : 'A1';
     String selectedZone = fallbackZone;
+    int selectedUnitPerCase = 24;
 
     showDialog(
       context: context,
@@ -156,6 +157,7 @@ class _CreateExportTabState extends ConsumerState<_CreateExportTab> {
                         if (selected.zone.isNotEmpty) {
                           selectedZone = selected.zone;
                         }
+                        selectedUnitPerCase = selected.unitPerCase;
                       });
                     }
                   },
@@ -172,7 +174,7 @@ class _CreateExportTabState extends ConsumerState<_CreateExportTab> {
                 TextField(
                   controller: qtyCtrl,
                   decoration: const InputDecoration(
-                    labelText: 'Số lượng',
+                    labelText: 'Số lượng (thùng)',
                     border: OutlineInputBorder(),
                   ),
                   keyboardType: TextInputType.number,
@@ -217,6 +219,7 @@ class _CreateExportTabState extends ConsumerState<_CreateExportTab> {
                       : barcodeCtrl.text.trim(),
                   qty,
                   selectedZone,
+                  selectedUnitPerCase,
                 );
                 Navigator.pop(ctx);
               },
@@ -230,7 +233,7 @@ class _CreateExportTabState extends ConsumerState<_CreateExportTab> {
 
   Future<void> _save() async {
     if (_items.isEmpty) return;
-    final totalQty = _items.fold(0, (sum, item) => sum + item.qty);
+    final totalQty = _items.fold(0, (sum, item) => sum + item.qty * item.unitPerCase);
     final zoneCounts = <String, int>{};
     for (final item in _items) {
       zoneCounts[item.zone] = (zoneCounts[item.zone] ?? 0) + 1;
@@ -243,7 +246,7 @@ class _CreateExportTabState extends ConsumerState<_CreateExportTab> {
           (item) => {
             'name': item.name,
             'barcode': item.barcode,
-            'quantity': item.qty,
+            'quantity': item.qty * item.unitPerCase,
             'zone': item.zone,
           },
         )
@@ -489,8 +492,8 @@ class _CreateExportTabState extends ConsumerState<_CreateExportTab> {
           child: FilledButton.icon(
             onPressed: _items.isEmpty ? null : _save,
             icon: const Icon(Icons.save),
-            label: Text(
-              'Lưu phiếu xuất (${_items.length} SP, ${_items.fold(0, (s, e) => s + e.qty)} lượng)',
+              label: Text(
+              'Lưu phiếu xuất (${_items.length} SP, ${_items.fold(0, (s, e) => s + e.qty)} thùng)',
             ),
           ),
         ),
@@ -503,11 +506,13 @@ class _CreateExportTabState extends ConsumerState<_CreateExportTab> {
 class _ExportItem {
   final String name, barcode, zone;
   int qty;
+  final int unitPerCase;
   _ExportItem({
     required this.name,
     required this.barcode,
     required this.qty,
     this.zone = 'A1',
+    this.unitPerCase = 24,
   });
 }
 
@@ -615,7 +620,7 @@ class _ProductPickerSheetState extends State<_ProductPickerSheet> {
                   return ListTile(
                     title: Text(p.name),
                     subtitle: Text(
-                      '${p.barcode} • ${p.zone} • Tồn: ${p.stock}',
+                      '${p.barcode} • ${p.zone} • Tồn: ${formatStock(p.stock, p.unitPerCase, p.unit)}',
                     ),
                     onTap: () => Navigator.pop(context, p),
                   );

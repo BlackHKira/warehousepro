@@ -22,7 +22,7 @@ class AdminReportsScreen extends ConsumerWidget {
           children: [
             Row(
               children: [
-                Expanded(child: _StatCard(icon: Icons.inventory_2, label: 'Tổng tồn', value: '$totalStock', color: AppColors.primary)),
+                Expanded(child: _StatCard(icon: Icons.inventory_2, label: 'Tổng tồn', value: '$totalStock sản phẩm', color: AppColors.primary)),
                 const SizedBox(width: 10),
                 Expanded(child: _StatCard(icon: Icons.category, label: 'Sản phẩm', value: '${products.length}', color: AppColors.green)),
               ],
@@ -46,8 +46,8 @@ class AdminReportsScreen extends ConsumerWidget {
               child: ListTile(
                 leading: CircleAvatar(backgroundColor: AppColors.orange.withValues(alpha: 0.1), child: const Icon(Icons.warning_amber, color: AppColors.orange, size: 18)),
                 title: Text(p.name, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14)),
-                subtitle: Text('${p.zone} · ${p.location}', style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-                trailing: Text(formatStockDetail(p.stock, p.unitPerCase), style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.red, fontSize: 12)),
+                subtitle: Text('${p.zone}', style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                trailing: Text(formatStockDetail(p.stock, p.unitPerCase, p.unit), style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.red, fontSize: 12)),
               ),
             )),
           ],
@@ -73,7 +73,7 @@ class AdminReportsScreen extends ConsumerWidget {
           child: Center(child: Text(e.key, style: TextStyle(color: _zoneColor(e.key), fontSize: 12, fontWeight: FontWeight.bold))),
         ),
         title: Text('Khu ${e.key}', style: const TextStyle(fontWeight: FontWeight.w500)),
-        trailing: Text('${e.value}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        trailing: Text('${e.value} sản phẩm', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
       ),
     )).toList();
   }
