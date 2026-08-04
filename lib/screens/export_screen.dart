@@ -119,6 +119,7 @@ class _CreateExportTabState extends ConsumerState<_CreateExportTab> {
     final fallbackZone = zones.isNotEmpty ? zones.first.code : 'A1';
     String selectedZone = fallbackZone;
     int selectedUnitPerCase = 24;
+    List<Zone> filteredZones = zones;
 
     showDialog(
       context: context,
@@ -154,10 +155,10 @@ class _CreateExportTabState extends ConsumerState<_CreateExportTab> {
                       setDialogState(() {
                         nameCtrl.text = selected.name;
                         barcodeCtrl.text = selected.barcode;
-                        if (selected.zone.isNotEmpty) {
-                          selectedZone = selected.zone;
-                        }
                         selectedUnitPerCase = selected.unitPerCase;
+                        filteredZones = zones.where((z) => z.description.contains(selected.category)).toList();
+                        if (filteredZones.isEmpty) filteredZones = zones;
+                        selectedZone = selected.zone;
                       });
                     }
                   },
@@ -186,7 +187,7 @@ class _CreateExportTabState extends ConsumerState<_CreateExportTab> {
                     labelText: 'Khu vực',
                     border: OutlineInputBorder(),
                   ),
-                  items: zones
+                  items: filteredZones
                       .map(
                         (z) => DropdownMenuItem(
                           value: z.code,
