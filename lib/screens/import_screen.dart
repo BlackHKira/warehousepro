@@ -23,7 +23,6 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
   final _items = <_ImportItem>[];
   final _supplierController = TextEditingController();
   final _noteController = TextEditingController();
-  String _scanZone = '';
 
   @override
   void dispose() {
@@ -32,13 +31,13 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
     super.dispose();
   }
 
-  void _addItem(String name, String barcode, int qty, [String zone = 'A1']) {
+  void _addItem(String name, String barcode, int qty, [String zone = 'A1', int unitPerCase = 24]) {
     setState(() {
       final existing = _items.where((e) => e.barcode == barcode).firstOrNull;
       if (existing != null) {
         existing.qty += qty;
       } else {
-        _items.add(_ImportItem(name: name, barcode: barcode, qty: qty, zone: zone));
+        _items.add(_ImportItem(name: name, barcode: barcode, qty: qty, zone: zone, unitPerCase: unitPerCase));
       }
     });
   }
@@ -74,7 +73,7 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
               if (!mounted) return;
               if (product != null) {
                 final qty = 1;
-                _addItem(product.name, product.barcode, qty, _scanZone.isNotEmpty ? _scanZone : product.zone);
+                _addItem(product.name, product.barcode, qty, product.zone, product.unitPerCase);
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text('Đã quét: ${product.name} — $qty thùng'), behavior: SnackBarBehavior.floating, duration: const Duration(seconds: 1)),
                 );
@@ -96,7 +95,7 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
               if (products.isEmpty) return;
               final product = products[rng.nextInt(products.length)];
               final qty = 1 + rng.nextInt(10);
-              _addItem(product.name, product.barcode, qty, _scanZone.isNotEmpty ? _scanZone : product.zone);
+              _addItem(product.name, product.barcode, qty, product.zone, product.unitPerCase);
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(content: Text('Đã quét: ${product.name} — $qty thùng'), behavior: SnackBarBehavior.floating, duration: const Duration(seconds: 1)),
               );
@@ -112,8 +111,9 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
     final nameCtrl = TextEditingController();
     final barcodeCtrl = TextEditingController();
     final qtyCtrl = TextEditingController(text: '1');
-    final fallbackZone = _scanZone.isNotEmpty && zones.any((z) => z.code == _scanZone) ? _scanZone : (zones.isNotEmpty ? zones.first.code : 'A1');
+    final fallbackZone = zones.isNotEmpty ? zones.first.code : 'A1';
     String selectedZone = fallbackZone;
+    int selectedUnitPerCase = 24;
 
     showDialog(
       context: context,
@@ -147,6 +147,7 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
                         nameCtrl.text = selected.name;
                         barcodeCtrl.text = selected.barcode;
                         if (selected.zone.isNotEmpty) selectedZone = selected.zone;
+                        selectedUnitPerCase = selected.unitPerCase;
                       });
                     }
                   },
@@ -154,7 +155,7 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
                 const SizedBox(height: 12),
                 TextField(controller: barcodeCtrl, decoration: const InputDecoration(labelText: 'Mã vạch', border: OutlineInputBorder())),
                 const SizedBox(height: 12),
-                TextField(controller: qtyCtrl, decoration: const InputDecoration(labelText: 'Số lượng', border: OutlineInputBorder()), keyboardType: TextInputType.number),
+                TextField(controller: qtyCtrl, decoration: const InputDecoration(labelText: 'Số lượng (thùng)', border: OutlineInputBorder()), keyboardType: TextInputType.number),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
                   initialValue: selectedZone,
@@ -177,7 +178,7 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
                   );
                   return;
                 }
-                _addItem(nameCtrl.text.trim(), barcodeCtrl.text.trim().isEmpty ? 'N/A' : barcodeCtrl.text.trim(), qty, selectedZone);
+                _addItem(nameCtrl.text.trim(), barcodeCtrl.text.trim().isEmpty ? 'N/A' : barcodeCtrl.text.trim(), qty, selectedZone, selectedUnitPerCase);
                 Navigator.pop(ctx);
               },
               child: const Text('Thêm'),
@@ -190,13 +191,13 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
 
   Future<void> _save() async {
     if (_items.isEmpty) return;
-    final totalQty = _items.fold(0, (sum, item) => sum + item.qty);
+    final totalQty = _items.fold(0, (sum, item) => sum + item.qty * item.unitPerCase);
     final zoneCounts = <String, int>{};
     for (final item in _items) {
       zoneCounts[item.zone] = (zoneCounts[item.zone] ?? 0) + 1;
     }
     final mainZone = zoneCounts.entries.reduce((a, b) => a.value >= b.value ? a : b).key;
-    final productsList = _items.map((item) => {'name': item.name, 'barcode': item.barcode, 'quantity': item.qty, 'zone': item.zone}).toList();
+    final productsList = _items.map((item) => {'name': item.name, 'barcode': item.barcode, 'quantity': item.qty * item.unitPerCase, 'zone': item.zone}).toList();
 
     final ok = await ref.read(warehouseProvider.notifier).addImport(
           totalQty,
@@ -251,30 +252,6 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
           ),
         ),
         const SizedBox(height: 12),
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            child: Row(
-              children: [
-                Text('Khu vực nhập: ', style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: DropdownButtonFormField<String>(
-                    initialValue: _scanZone.isNotEmpty && zones.any((z) => z.code == _scanZone) ? _scanZone : null,
-                    isDense: true,
-                    decoration: const InputDecoration(
-                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      border: OutlineInputBorder(),
-                    ),
-                    hint: const Text('Chọn khu vực', style: TextStyle(fontSize: 13)),
-                    items: zones.map((z) => DropdownMenuItem(value: z.code, child: Text(z.label, style: const TextStyle(fontSize: 13)))).toList(),
-                    onChanged: (v) => setState(() => _scanZone = v ?? ''),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
         const SizedBox(height: 8),
         Row(
           children: [
@@ -362,7 +339,7 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
           child: FilledButton.icon(
             onPressed: _items.isEmpty ? null : _save,
             icon: const Icon(Icons.save),
-            label: Text('Lưu phiếu nhập (${_items.length} SP, ${_items.fold(0, (s, e) => s + e.qty)} lượng)'),
+            label: Text('Lưu phiếu nhập (${_items.length} SP, ${_items.fold(0, (s, e) => s + e.qty)} thùng)'),
             style: FilledButton.styleFrom(
               backgroundColor: AppColors.green,
               elevation: 0,
@@ -383,7 +360,8 @@ class _ImportItem {
   final String name, barcode;
   String zone;
   int qty;
-  _ImportItem({required this.name, required this.barcode, required this.qty, this.zone = 'A1'});
+  final int unitPerCase;
+  _ImportItem({required this.name, required this.barcode, required this.qty, this.zone = 'A1', this.unitPerCase = 24});
 }
 
 class _ProductPickerSheet extends StatefulWidget {
@@ -463,7 +441,7 @@ class _ProductPickerSheetState extends State<_ProductPickerSheet> {
                   final p = _filtered[i];
                   return ListTile(
                     title: Text(p.name),
-                    subtitle: Text('${p.barcode} • ${p.zone} • Tồn: ${formatStock(p.stock, p.unitPerCase)}'),
+                    subtitle: Text('${p.barcode} • ${p.zone} • Tồn: ${formatStock(p.stock, p.unitPerCase, p.unit)}'),
                     onTap: () => Navigator.pop(context, p),
                   );
                 },
