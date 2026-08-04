@@ -114,6 +114,7 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
     final fallbackZone = zones.isNotEmpty ? zones.first.code : 'A1';
     String selectedZone = fallbackZone;
     int selectedUnitPerCase = 24;
+    List<Zone> filteredZones = zones;
 
     showDialog(
       context: context,
@@ -146,8 +147,10 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
                       setDialogState(() {
                         nameCtrl.text = selected.name;
                         barcodeCtrl.text = selected.barcode;
-                        if (selected.zone.isNotEmpty) selectedZone = selected.zone;
                         selectedUnitPerCase = selected.unitPerCase;
+                        filteredZones = zones.where((z) => z.description.contains(selected.category)).toList();
+                        if (filteredZones.isEmpty) filteredZones = zones;
+                        selectedZone = selected.zone;
                       });
                     }
                   },
@@ -160,7 +163,7 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
                 DropdownButtonFormField<String>(
                   initialValue: selectedZone,
                   decoration: const InputDecoration(labelText: 'Khu vực', border: OutlineInputBorder()),
-                  items: zones.map((z) => DropdownMenuItem(value: z.code, child: Text(z.label, style: const TextStyle(fontSize: 14)))).toList(),
+                  items: filteredZones.map((z) => DropdownMenuItem(value: z.code, child: Text(z.label, style: const TextStyle(fontSize: 14)))).toList(),
                   onChanged: (v) => setDialogState(() => selectedZone = v ?? fallbackZone),
                 ),
               ],
