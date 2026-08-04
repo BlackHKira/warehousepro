@@ -42,14 +42,32 @@ class AdminReportsScreen extends ConsumerWidget {
             const SizedBox(height: 20),
             Text('Top sản phẩm tồn thấp', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
             const SizedBox(height: 8),
-            ...products.where((p) => p.isLowStock).take(5).map((p) => Card(
-              child: ListTile(
-                leading: CircleAvatar(backgroundColor: AppColors.orange.withValues(alpha: 0.1), child: const Icon(Icons.warning_amber, color: AppColors.orange, size: 18)),
-                title: Text(p.name, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14)),
-                subtitle: Text('${p.zone}', style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-                trailing: Text(formatStockDetail(p.stock, p.unitPerCase, p.unit), style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.red, fontSize: 12)),
-              ),
-            )),
+            ...() {
+              final lowStockProducts = products.where((p) => p.isLowStock).toList()..sort((a, b) => a.stock.compareTo(b.stock));
+              if (lowStockProducts.isEmpty) {
+                return [Card(child: Padding(padding: const EdgeInsets.all(16), child: Text('Không có sản phẩm sắp hết hàng', style: TextStyle(color: AppColors.textMuted))))];
+              }
+              return [
+                SizedBox(
+                  height: 300,
+                  child: ListView.separated(
+                    itemCount: lowStockProducts.length,
+                    separatorBuilder: (_, _) => const SizedBox(height: 6),
+                    itemBuilder: (_, i) {
+                      final p = lowStockProducts[i];
+                      return Card(
+                        child: ListTile(
+                          leading: CircleAvatar(backgroundColor: AppColors.orange.withValues(alpha: 0.1), child: const Icon(Icons.warning_amber, color: AppColors.orange, size: 18)),
+                          title: Text(p.name, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14)),
+                          subtitle: Text('${p.zone}', style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                          trailing: Text(formatStockDetail(p.stock, p.unitPerCase, p.unit), style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.red, fontSize: 12)),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ];
+            }(),
           ],
         );
       },
