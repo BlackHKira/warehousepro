@@ -13,6 +13,7 @@ class Product {
   final int minStock;
   final int unitPerCase;
   final String note;
+  final String imageUrl;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -29,6 +30,7 @@ class Product {
     this.minStock = 10,
     this.unitPerCase = 1,
     this.note = '',
+    this.imageUrl = '',
     this.createdAt,
     this.updatedAt,
   });
@@ -53,6 +55,7 @@ class Product {
       minStock: (map['minStock'] as num?)?.toInt() ?? 10,
       unitPerCase: (map['unitPerCase'] as num?)?.toInt() ?? 1,
       note: map['note'] as String? ?? '',
+      imageUrl: map['imageUrl'] as String? ?? '',
       createdAt: map['createdAt'] != null
           ? (map['createdAt'] is String
               ? DateTime.tryParse(map['createdAt'])
@@ -78,6 +81,7 @@ class Product {
         'minStock': minStock,
         'unitPerCase': unitPerCase,
         'note': note,
+        'imageUrl': imageUrl,
         'createdAt': createdAt?.toIso8601String(),
         'updatedAt': updatedAt?.toIso8601String(),
       };

@@ -38,6 +38,7 @@ class SeedFirestore {
       await db.collection('products').add({
         ...p,
         'note': '',
+        'imageUrl': '',
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       });
