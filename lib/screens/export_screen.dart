@@ -19,78 +19,9 @@ class ExportScreen extends ConsumerStatefulWidget {
 }
 
 class _ExportScreenState extends ConsumerState<ExportScreen> {
-  int _tabIndex = 0;
-
   @override
   Widget build(BuildContext context) {
-    final body = Column(
-      children: [
-        Container(
-          margin: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: AppColors.background,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: GestureDetector(
-                  onTap: () => setState(() => _tabIndex = 0),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    decoration: BoxDecoration(
-                      color: _tabIndex == 0
-                          ? AppColors.primary
-                          : Colors.transparent,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      'Tạo phiếu xuất',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: _tabIndex == 0
-                            ? Colors.white
-                            : AppColors.textSecondary,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              Expanded(
-                child: GestureDetector(
-                  onTap: () => setState(() => _tabIndex = 1),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    decoration: BoxDecoration(
-                      color: _tabIndex == 1
-                          ? AppColors.primary
-                          : Colors.transparent,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      'Chọn lệnh xuất',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: _tabIndex == 1
-                            ? Colors.white
-                            : AppColors.textSecondary,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        Expanded(
-          child: _tabIndex == 0
-              ? const _CreateExportTab()
-              : const _PickingOrderTab(),
-        ),
-      ],
-    );
+    final body = const _CreateExportTab();
 
     if (widget.embedded) return body;
     return Scaffold(
@@ -109,6 +40,7 @@ class _CreateExportTab extends ConsumerStatefulWidget {
 class _CreateExportTabState extends ConsumerState<_CreateExportTab> {
   final _items = <_ExportItem>[];
   final _customerController = TextEditingController();
+  String _selectedStatus = 'pending';
 
   @override
   void dispose() {
@@ -116,10 +48,10 @@ class _CreateExportTabState extends ConsumerState<_CreateExportTab> {
     super.dispose();
   }
 
-  void _addItem(String name, String barcode, int qty, [String zone = 'A1']) {
+  void _addItem(String name, String barcode, int qty, [String zone = 'A1', int unitPerCase = 24]) {
     setState(
       () => _items.add(
-        _ExportItem(name: name, barcode: barcode, qty: qty, zone: zone),
+        _ExportItem(name: name, barcode: barcode, qty: qty, zone: zone, unitPerCase: unitPerCase),
       ),
     );
   }
@@ -162,11 +94,11 @@ class _CreateExportTabState extends ConsumerState<_CreateExportTab> {
               if (products.isEmpty) return;
               final product = products[rng.nextInt(products.length)];
               final qty = 1 + rng.nextInt(10);
-              _addItem(product.name, product.barcode, qty, product.zone);
+              _addItem(product.name, product.barcode, qty, product.zone, product.unitPerCase);
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text(
-                    'Đã quét: ${product.name} — $qty ${product.unit}',
+                    'Đã quét: ${product.name} — $qty thùng',
                   ),
                   behavior: SnackBarBehavior.floating,
                   duration: const Duration(seconds: 1),
@@ -186,6 +118,8 @@ class _CreateExportTabState extends ConsumerState<_CreateExportTab> {
     final qtyCtrl = TextEditingController(text: '1');
     final fallbackZone = zones.isNotEmpty ? zones.first.code : 'A1';
     String selectedZone = fallbackZone;
+    int selectedUnitPerCase = 24;
+    List<Zone> filteredZones = zones;
 
     showDialog(
       context: context,
@@ -221,9 +155,10 @@ class _CreateExportTabState extends ConsumerState<_CreateExportTab> {
                       setDialogState(() {
                         nameCtrl.text = selected.name;
                         barcodeCtrl.text = selected.barcode;
-                        if (selected.zone.isNotEmpty) {
-                          selectedZone = selected.zone;
-                        }
+                        selectedUnitPerCase = selected.unitPerCase;
+                        filteredZones = zones.where((z) => z.description.contains(selected.category)).toList();
+                        if (filteredZones.isEmpty) filteredZones = zones;
+                        selectedZone = selected.zone;
                       });
                     }
                   },
@@ -240,7 +175,7 @@ class _CreateExportTabState extends ConsumerState<_CreateExportTab> {
                 TextField(
                   controller: qtyCtrl,
                   decoration: const InputDecoration(
-                    labelText: 'Số lượng',
+                    labelText: 'Số lượng (thùng)',
                     border: OutlineInputBorder(),
                   ),
                   keyboardType: TextInputType.number,
@@ -252,7 +187,7 @@ class _CreateExportTabState extends ConsumerState<_CreateExportTab> {
                     labelText: 'Khu vực',
                     border: OutlineInputBorder(),
                   ),
-                  items: zones
+                  items: filteredZones
                       .map(
                         (z) => DropdownMenuItem(
                           value: z.code,
@@ -285,6 +220,7 @@ class _CreateExportTabState extends ConsumerState<_CreateExportTab> {
                       : barcodeCtrl.text.trim(),
                   qty,
                   selectedZone,
+                  selectedUnitPerCase,
                 );
                 Navigator.pop(ctx);
               },
@@ -298,7 +234,7 @@ class _CreateExportTabState extends ConsumerState<_CreateExportTab> {
 
   Future<void> _save() async {
     if (_items.isEmpty) return;
-    final totalQty = _items.fold(0, (sum, item) => sum + item.qty);
+    final totalQty = _items.fold(0, (sum, item) => sum + item.qty * item.unitPerCase);
     final zoneCounts = <String, int>{};
     for (final item in _items) {
       zoneCounts[item.zone] = (zoneCounts[item.zone] ?? 0) + 1;
@@ -311,7 +247,7 @@ class _CreateExportTabState extends ConsumerState<_CreateExportTab> {
           (item) => {
             'name': item.name,
             'barcode': item.barcode,
-            'quantity': item.qty,
+            'quantity': item.qty * item.unitPerCase,
             'zone': item.zone,
           },
         )
@@ -326,12 +262,14 @@ class _CreateExportTabState extends ConsumerState<_CreateExportTab> {
               : _customerController.text.trim(),
           zone: mainZone,
           products: productsList,
+          status: _selectedStatus,
         );
     if (!mounted) return;
     if (ok) {
       setState(() {
         _items.clear();
         _customerController.clear();
+        _selectedStatus = 'pending';
       });
       ref.read(selectedTabProvider.notifier).state = 0;
       await Future.delayed(const Duration(milliseconds: 50));
@@ -385,6 +323,22 @@ class _CreateExportTabState extends ConsumerState<_CreateExportTab> {
                     prefixIcon: Icon(Icons.person),
                     isDense: true,
                   ),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  value: _selectedStatus,
+                  decoration: const InputDecoration(
+                    labelText: 'Trạng thái',
+                    prefixIcon: Icon(Icons.flag_outlined),
+                    isDense: true,
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'pending', child: Text('Chờ xử lý')),
+                    DropdownMenuItem(value: 'completed', child: Text('Hoàn thành')),
+                  ],
+                  onChanged: (v) {
+                    if (v != null) setState(() => _selectedStatus = v);
+                  },
                 ),
               ],
             ),
@@ -539,8 +493,8 @@ class _CreateExportTabState extends ConsumerState<_CreateExportTab> {
           child: FilledButton.icon(
             onPressed: _items.isEmpty ? null : _save,
             icon: const Icon(Icons.save),
-            label: Text(
-              'Lưu phiếu xuất (${_items.length} SP, ${_items.fold(0, (s, e) => s + e.qty)} lượng)',
+              label: Text(
+              'Lưu phiếu xuất (${_items.length} SP, ${_items.fold(0, (s, e) => s + e.qty)} thùng)',
             ),
           ),
         ),
@@ -550,153 +504,16 @@ class _CreateExportTabState extends ConsumerState<_CreateExportTab> {
   }
 }
 
-class _PickingOrderTab extends StatelessWidget {
-  const _PickingOrderTab();
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        _PickingOrderCard(
-          id: 'PO-2024-001',
-          customer: 'Cửa hàng Anh Tuấn',
-          items: 5,
-          status: 'pending',
-          statusColor: AppColors.orange,
-        ),
-        _PickingOrderCard(
-          id: 'PO-2024-002',
-          customer: 'Tạp hóa Cô Mai',
-          items: 3,
-          status: 'in_progress',
-          statusColor: AppColors.primary,
-        ),
-        _PickingOrderCard(
-          id: 'PO-2024-003',
-          customer: 'Đại lý Bia Hải',
-          items: 8,
-          status: 'completed',
-          statusColor: AppColors.green,
-        ),
-      ],
-    );
-  }
-}
-
-class _PickingOrderCard extends StatelessWidget {
-  final String id, customer, status;
-  final int items;
-  final Color statusColor;
-  const _PickingOrderCard({
-    required this.id,
-    required this.customer,
-    required this.items,
-    required this.status,
-    required this.statusColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: ListTile(
-        onTap: () {
-          showDialog(
-            context: context,
-            builder: (ctx) => AlertDialog(
-              title: Text('Lệnh $id'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Khách: $customer'),
-                  const SizedBox(height: 12),
-                  const Text(
-                    '1. Coca Cola 355ml — 24 thùng',
-                    style: TextStyle(fontSize: 13),
-                  ),
-                  const Text(
-                    '2. Pepsi 355ml — 12 thùng',
-                    style: TextStyle(fontSize: 13),
-                  ),
-                  const Text(
-                    '3. Sting đỏ — 6 thùng',
-                    style: TextStyle(fontSize: 13),
-                  ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(ctx),
-                  child: const Text('Đóng'),
-                ),
-                FilledButton(
-                  onPressed: () => Navigator.pop(ctx),
-                  child: const Text('Quét để xuất'),
-                ),
-              ],
-            ),
-          );
-        },
-        leading: CircleAvatar(
-          backgroundColor: statusColor.withValues(alpha: 0.1),
-          child: Icon(_statusIcon(), color: statusColor),
-        ),
-        title: Text(id, style: const TextStyle(fontWeight: FontWeight.w600)),
-        subtitle: Text('$customer • $items sản phẩm'),
-        trailing: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(
-            color: statusColor.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Text(
-            _statusText(),
-            style: TextStyle(
-              color: statusColor,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  IconData _statusIcon() {
-    switch (status) {
-      case 'pending':
-        return Icons.hourglass_empty;
-      case 'in_progress':
-        return Icons.sync;
-      case 'completed':
-        return Icons.check_circle;
-      default:
-        return Icons.help;
-    }
-  }
-
-  String _statusText() {
-    switch (status) {
-      case 'pending':
-        return 'Chờ xử lý';
-      case 'in_progress':
-        return 'Đang lấy';
-      case 'completed':
-        return 'Hoàn tất';
-      default:
-        return status;
-    }
-  }
-}
-
 class _ExportItem {
   final String name, barcode, zone;
   int qty;
+  final int unitPerCase;
   _ExportItem({
     required this.name,
     required this.barcode,
     required this.qty,
     this.zone = 'A1',
+    this.unitPerCase = 24,
   });
 }
 
@@ -804,7 +621,7 @@ class _ProductPickerSheetState extends State<_ProductPickerSheet> {
                   return ListTile(
                     title: Text(p.name),
                     subtitle: Text(
-                      '${p.barcode} • ${p.zone} • Tồn: ${p.stock}',
+                      '${p.barcode} • ${p.zone} • Tồn: ${formatStock(p.stock, p.unitPerCase, p.unit)}',
                     ),
                     onTap: () => Navigator.pop(context, p),
                   );

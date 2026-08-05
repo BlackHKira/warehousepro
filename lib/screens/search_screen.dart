@@ -2,6 +2,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/product_provider.dart';
+import '../providers/zone_provider.dart' show zonesProvider;
 import '../theme/app_theme.dart';
 import '../widgets/barcode_scanner_screen.dart';
 import 'product_detail_screen.dart';
@@ -89,12 +90,77 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     );
   }
 
+  void _showFilterSheet(BuildContext context, String title, List<String> items, String current, ValueChanged<String> onSelect) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      builder: (_) => DraggableScrollableSheet(
+        initialChildSize: 0.5,
+        minChildSize: 0.3,
+        maxChildSize: 0.8,
+        expand: false,
+        builder: (context, scrollController) => Column(
+          children: [
+            Container(
+              margin: const EdgeInsets.only(top: 12),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  const Spacer(),
+                  if (current.isNotEmpty)
+                    TextButton(
+                      onPressed: () {
+                        onSelect('');
+                        Navigator.pop(context);
+                      },
+                      child: const Text('Xoá bộ lọc', style: TextStyle(color: AppColors.red)),
+                    ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: ListView.builder(
+                controller: scrollController,
+                itemCount: items.length,
+                itemBuilder: (_, i) {
+                  final item = items[i];
+                  final isSelected = item == current;
+                  return ListTile(
+                    leading: Icon(
+                      isSelected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+                      color: isSelected ? AppColors.primary : AppColors.textMuted,
+                    ),
+                    title: Text(item, style: TextStyle(fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal)),
+                    trailing: isSelected ? const Icon(Icons.check, color: AppColors.primary) : null,
+                    onTap: () {
+                      onSelect(isSelected ? '' : item);
+                      Navigator.pop(context);
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final query = _searchController.text.trim();
     final productsAsync = ref.watch(productsProvider);
     final products = productsAsync.valueOrNull ?? [];
-    final zones = products.map((p) => p.zone).where((z) => z.isNotEmpty).toSet().toList()..sort();
+    final zonesAsync = ref.watch(zonesProvider);
+    final zonesList = zonesAsync.valueOrNull?.map((z) => z.code).toList() ?? [];
+    zonesList.sort();
+    final zones = zonesList;
     final categories = products.map((p) => p.category).where((c) => c.isNotEmpty).toSet().toList()..sort();
     final filtered = products.where((p) {
       if (query.isNotEmpty) {
@@ -163,55 +229,32 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         const SizedBox(height: 6),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                if (zones.isNotEmpty) ...[
-                  ChoiceChip(
-                    label: Text('Khu vực', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-                    selected: false,
-                    onSelected: (_) {},
-                    selectedColor: AppColors.primary.withValues(alpha: 0.3),
-                    disabledColor: const Color(0xFFE8ECF4),
-                    backgroundColor: const Color(0xFFE8ECF4),
-                  ),
-                  const SizedBox(width: 4),
-                  ...zones.map((z) => Padding(
-                    padding: const EdgeInsets.only(right: 4),
-                    child: FilterChip(
-                      label: Text(z, style: TextStyle(fontSize: 12, color: _selectedZone == z ? Colors.white : AppColors.textPrimary)),
-                      selected: _selectedZone == z,
-                      onSelected: (v) => setState(() => _selectedZone = v ? z : ''),
-                      selectedColor: AppColors.primary,
-                      backgroundColor: const Color(0xFFE8ECF4),
-                    ),
-                  )),
-                  const SizedBox(width: 12),
-                ],
-                if (categories.isNotEmpty) ...[
-                  ChoiceChip(
-                    label: Text('Danh mục', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-                    selected: false,
-                    onSelected: (_) {},
-                    selectedColor: AppColors.primary.withValues(alpha: 0.3),
-                    disabledColor: const Color(0xFFE8ECF4),
-                    backgroundColor: const Color(0xFFE8ECF4),
-                  ),
-                  const SizedBox(width: 4),
-                  ...categories.map((c) => Padding(
-                    padding: const EdgeInsets.only(right: 4),
-                    child: FilterChip(
-                      label: Text(c, style: TextStyle(fontSize: 12, color: _selectedCategory == c ? Colors.white : AppColors.textPrimary)),
-                      selected: _selectedCategory == c,
-                      onSelected: (v) => setState(() => _selectedCategory = v ? c : ''),
-                      selectedColor: AppColors.primary,
-                      backgroundColor: const Color(0xFFE8ECF4),
-                    ),
-                  )),
-                ],
-              ],
-            ),
+          child: Row(
+            children: [
+              ActionChip(
+                avatar: Icon(Icons.location_on, size: 18, color: _selectedZone.isNotEmpty ? Colors.white : AppColors.primary),
+                label: Text(
+                  _selectedZone.isNotEmpty ? 'Khu: $_selectedZone' : 'Khu vực',
+                  style: TextStyle(fontSize: 13, color: _selectedZone.isNotEmpty ? Colors.white : AppColors.textPrimary),
+                ),
+                onPressed: () => _showFilterSheet(context, 'Khu vực', zones, _selectedZone, (v) => setState(() => _selectedZone = v)),
+                backgroundColor: _selectedZone.isNotEmpty ? AppColors.primary : const Color(0xFFE8ECF4),
+                side: BorderSide.none,
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+              ),
+              const SizedBox(width: 8),
+              ActionChip(
+                avatar: Icon(Icons.category_outlined, size: 18, color: _selectedCategory.isNotEmpty ? Colors.white : AppColors.primary),
+                label: Text(
+                  _selectedCategory.isNotEmpty ? 'Loại: $_selectedCategory' : 'Danh mục',
+                  style: TextStyle(fontSize: 13, color: _selectedCategory.isNotEmpty ? Colors.white : AppColors.textPrimary),
+                ),
+                onPressed: () => _showFilterSheet(context, 'Danh mục', categories, _selectedCategory, (v) => setState(() => _selectedCategory = v)),
+                backgroundColor: _selectedCategory.isNotEmpty ? AppColors.primary : const Color(0xFFE8ECF4),
+                side: BorderSide.none,
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+              ),
+            ],
           ),
         ),
         const SizedBox(height: 8),
@@ -246,14 +289,14 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                           const SizedBox(width: 12),
                           const Icon(Icons.location_on, size: 12, color: AppColors.textMuted),
                           const SizedBox(width: 2),
-                          Text(p.location, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                          Text(p.zone, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
                         ],
                       ),
                       trailing: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
-                          Text(formatStock(p.stock, p.unitPerCase), style: TextStyle(fontWeight: FontWeight.bold, color: p.isLowStock ? AppColors.red : AppColors.green, fontSize: 16)),
+                          Text(formatStock(p.stock, p.unitPerCase, p.unit), style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.green, fontSize: 16)),
                         ],
                       ),
                     ),

@@ -7,7 +7,6 @@ class Product {
   final String sku;
   final String category;
   final String zone;
-  final String location;
   final String unit;
   final int stock;
   final int serverStock;
@@ -24,7 +23,6 @@ class Product {
     this.sku = '',
     this.category = '',
     this.zone = '',
-    this.location = '',
     this.unit = 'cái',
     this.stock = 0,
     this.serverStock = 0,
@@ -49,9 +47,6 @@ class Product {
       sku: map['sku'] as String? ?? map['id'] as String? ?? '',
       category: map['category'] as String? ?? '',
       zone: zone,
-      location: warehouseLocation.isNotEmpty
-          ? warehouseLocation
-          : (map['location'] as String? ?? ''),
       unit: map['unit'] as String? ?? 'cái',
       stock: (map['stock'] as num?)?.toInt() ?? 0,
       serverStock: (map['serverStock'] as num?)?.toInt() ?? 0,
@@ -77,7 +72,6 @@ class Product {
         'sku': sku,
         'category': category,
         'zone': zone,
-        'location': location,
         'unit': unit,
         'stock': stock,
         'serverStock': serverStock,
@@ -87,6 +81,11 @@ class Product {
         'createdAt': createdAt?.toIso8601String(),
         'updatedAt': updatedAt?.toIso8601String(),
       };
+
+  String get location {
+    if (zone.isNotEmpty) return '$zone-$id';
+    return '';
+  }
 
   bool get isLowStock => stock <= minStock;
   bool get isOutOfStock => stock == 0;

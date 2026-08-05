@@ -4,10 +4,11 @@ import '../models/product.dart';
 import '../data/sample_products.dart';
 
 class ProductService {
-  final _collection = FirebaseFirestore.instanceFor(
+  final _db = FirebaseFirestore.instanceFor(
     app: Firebase.app(),
     databaseId: 'warehousepro-db',
-  ).collection('products');
+  );
+  late final _collection = _db.collection('products');
 
   Stream<List<Product>> streamProducts() {
     return _collection.orderBy('name').snapshots().map(
@@ -23,6 +24,9 @@ class ProductService {
         .map((doc) => Product.fromMap(doc.id, doc.data()))
         .toList();
     if (list.isNotEmpty) return list;
+    for (final p in sampleProducts) {
+      await _collection.add(p.toMap());
+    }
     return sampleProducts;
   }
 
@@ -108,25 +112,46 @@ class ProductService {
     return sampleProducts.where((p) => p.isLowStock).toList();
   }
 
-  Future<void> updateStockByBarcode(
-    String barcode,
-    int delta, {
-    String? zone,
-  }) async {
+  Future<String?> updateStockByBarcode(String barcode, int delta, {String? zone}) async {
+    if (delta < 0) {
+      return await _db.runTransaction<String?>((tx) async {
+        final snapshot = await _collection
+            .where('barcode', isEqualTo: barcode)
+            .limit(1)
+            .get();
+        if (snapshot.docs.isEmpty) return null;
+        final doc = snapshot.docs.first;
+        final currentStock = (doc.data()['stock'] as num?)?.toInt() ?? 0;
+        if (currentStock + delta < 0) {
+          return '${doc.data()['name']}: chỉ còn $currentStock (cần ${-delta})';
+        }
+        final updateData = <String, dynamic>{
+          'stock': FieldValue.increment(delta),
+          'updatedAt': FieldValue.serverTimestamp(),
+        };
+        if (zone != null && zone.isNotEmpty) {
+          updateData['zone'] = zone;
+          updateData['warehouseLocation'] = '$zone-${doc.data()['id'] ?? ''}';
+        }
+        tx.update(doc.reference, updateData);
+        return null;
+      });
+    }
     final snapshot = await _collection
         .where('barcode', isEqualTo: barcode)
         .limit(1)
         .get();
-    if (snapshot.docs.isEmpty) return;
-    final doc = snapshot.docs.first;
-    final update = <String, dynamic>{
+    if (snapshot.docs.isEmpty) return null;
+    final updateData = <String, dynamic>{
       'stock': FieldValue.increment(delta),
       'updatedAt': FieldValue.serverTimestamp(),
     };
     if (zone != null && zone.isNotEmpty) {
-      update['zone'] = zone;
+      updateData['zone'] = zone;
+      updateData['warehouseLocation'] = '$zone-${snapshot.docs.first.data()['id'] ?? ''}';
     }
-    await doc.reference.update(update);
+    await snapshot.docs.first.reference.update(updateData);
+    return null;
   }
 
   Future<String?> checkExportStock(List<Map<String, dynamic>> products) async {
@@ -140,7 +165,7 @@ class ProductService {
       if (product == null) {
         errors.add('$name: không tìm thấy trong kho');
       } else if (product.stock < qty) {
-        errors.add('${product.name}: chỉ còn ${product.stock} (cần $qty)');
+        errors.add('${product.name}: chỉ còn ${product.stock} ${product.unit.toLowerCase()} (cần $qty)');
       }
     }
     return errors.isEmpty ? null : errors.join('\n');

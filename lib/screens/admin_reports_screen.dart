@@ -22,7 +22,7 @@ class AdminReportsScreen extends ConsumerWidget {
           children: [
             Row(
               children: [
-                Expanded(child: _StatCard(icon: Icons.inventory_2, label: 'Tổng tồn', value: '$totalStock', color: AppColors.primary)),
+                Expanded(child: _StatCard(icon: Icons.inventory_2, label: 'Tổng tồn', value: '$totalStock sản phẩm', color: AppColors.primary)),
                 const SizedBox(width: 10),
                 Expanded(child: _StatCard(icon: Icons.category, label: 'Sản phẩm', value: '${products.length}', color: AppColors.green)),
               ],
@@ -42,14 +42,32 @@ class AdminReportsScreen extends ConsumerWidget {
             const SizedBox(height: 20),
             Text('Top sản phẩm tồn thấp', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
             const SizedBox(height: 8),
-            ...products.where((p) => p.isLowStock).take(5).map((p) => Card(
-              child: ListTile(
-                leading: CircleAvatar(backgroundColor: AppColors.orange.withValues(alpha: 0.1), child: const Icon(Icons.warning_amber, color: AppColors.orange, size: 18)),
-                title: Text(p.name, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14)),
-                subtitle: Text('${p.zone} · ${p.location}', style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-                trailing: Text(formatStockDetail(p.stock, p.unitPerCase), style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.red, fontSize: 12)),
-              ),
-            )),
+            ...() {
+              final lowStockProducts = products.where((p) => p.isLowStock).toList()..sort((a, b) => a.stock.compareTo(b.stock));
+              if (lowStockProducts.isEmpty) {
+                return [Card(child: Padding(padding: const EdgeInsets.all(16), child: Text('Không có sản phẩm sắp hết hàng', style: TextStyle(color: AppColors.textMuted))))];
+              }
+              return [
+                SizedBox(
+                  height: 300,
+                  child: ListView.separated(
+                    itemCount: lowStockProducts.length,
+                    separatorBuilder: (_, _) => const SizedBox(height: 6),
+                    itemBuilder: (_, i) {
+                      final p = lowStockProducts[i];
+                      return Card(
+                        child: ListTile(
+                          leading: CircleAvatar(backgroundColor: AppColors.orange.withValues(alpha: 0.1), child: const Icon(Icons.warning_amber, color: AppColors.orange, size: 18)),
+                          title: Text(p.name, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14)),
+                          subtitle: Text('${p.zone}', style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                          trailing: Text(formatStockDetail(p.stock, p.unitPerCase, p.unit), style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.red, fontSize: 12)),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ];
+            }(),
           ],
         );
       },
@@ -73,7 +91,7 @@ class AdminReportsScreen extends ConsumerWidget {
           child: Center(child: Text(e.key, style: TextStyle(color: _zoneColor(e.key), fontSize: 12, fontWeight: FontWeight.bold))),
         ),
         title: Text('Khu ${e.key}', style: const TextStyle(fontWeight: FontWeight.w500)),
-        trailing: Text('${e.value}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        trailing: Text('${e.value} sản phẩm', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
       ),
     )).toList();
   }
@@ -101,12 +119,19 @@ class _StatCard extends StatelessWidget {
           children: [
             Container(width: 40, height: 40, decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)), child: Icon(icon, color: color, size: 20)),
             const SizedBox(width: 10),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(label, style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
-                Text(value, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: color)),
-              ],
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(label, style: TextStyle(fontSize: 11, color: AppColors.textSecondary), overflow: TextOverflow.ellipsis),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(value, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: color)),
+                  ),
+                ],
+              ),
             ),
           ],
         ),

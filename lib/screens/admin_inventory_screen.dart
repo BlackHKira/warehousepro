@@ -106,7 +106,7 @@ class _InventoryBodyState extends State<_InventoryBody> {
             children: [
               Text('${filtered.length} sản phẩm', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
               const Spacer(),
-              Text('${filtered.fold(0, (s, p) => s + p.stock)} tồn kho', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+              Text('${filtered.fold(0, (s, p) => s + p.stock)} sản phẩm', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
             ],
           ),
         ),
@@ -127,12 +127,12 @@ class _InventoryBodyState extends State<_InventoryBody> {
                     child: Center(child: Text(p.zone, style: TextStyle(color: _zoneColor(p.zone), fontSize: 12, fontWeight: FontWeight.bold))),
                   ),
                   title: Text(p.name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-                  subtitle: Text('${p.category} · ${p.location}', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                  subtitle: Text('${p.category} · ${p.zone}', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
                   trailing: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      Text(formatStock(p.stock, p.unitPerCase), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: p.isLowStock ? AppColors.red : AppColors.green)),
+                      Text(formatStock(p.stock, p.unitPerCase, p.unit), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: p.isLowStock ? AppColors.red : AppColors.green)),
                     ],
                   ),
                 ),

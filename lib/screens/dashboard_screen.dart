@@ -85,7 +85,7 @@ class DashboardScreen extends ConsumerWidget {
               children: [
                 Row(
                   children: [
-                    Expanded(child: _StatCard(icon: Icons.inventory_2_outlined, iconBgColor: AppColors.primaryLight, iconColor: AppColors.primary, label: 'Sản phẩm', value: '$totalStock')),
+                    Expanded(child: _StatCard(icon: Icons.inventory_2_outlined, iconBgColor: AppColors.primaryLight, iconColor: AppColors.primary, label: 'Sản phẩm', value: '$totalStock sản phẩm')),
                     const SizedBox(width: 10),
                     Expanded(child: _StatCard(icon: Icons.arrow_downward, iconBgColor: AppColors.successLight, iconColor: AppColors.green, label: 'Nhập hôm nay', value: '${warehouse.todayImports}')),
                   ],
@@ -512,7 +512,7 @@ class _ActivityTile extends StatelessWidget {
                 if (isImport) _detailRow('Nhà cung cấp', (data['supplier'] as String?)?.isNotEmpty == true ? data['supplier'] : 'NCC không tên'),
                 if (!isImport) _detailRow('Khách hàng', (data['customer'] as String?)?.isNotEmpty == true ? data['customer'] : 'Khách lẻ'),
                 _detailRow('Ghi chú', (data['note'] as String?)?.isNotEmpty == true ? data['note'] : 'Không có'),
-                _detailRow('Trạng thái', (data['status'] as String?)?.isNotEmpty == true ? data['status']! : 'Đã hoàn thành'),
+                _detailRow('Trạng thái', _mapStatus((data['status'] as String?))),
                 if (timeStr.isNotEmpty) _detailRow('Thời gian', timeStr),
                 if (products.isNotEmpty) ...[
                   const SizedBox(height: 12),
@@ -537,6 +537,17 @@ class _ActivityTile extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  String _mapStatus(String? status) {
+    switch (status) {
+      case 'pending':
+        return 'Chờ xử lý';
+      case 'completed':
+        return 'Hoàn thành';
+      default:
+        return 'Đã hoàn thành';
+    }
   }
 
   Widget _detailRow(String label, String value) {
@@ -779,36 +790,4 @@ Map<String, int> _calculateMonthlyExportQty(
     result[key] = (result[key] ?? 0) + items;
   }
   return result;
-}
-
-String _firstProductName(Map<String, dynamic> t) {
-  final products = t['products'] as List<dynamic>? ?? [];
-  if (products.isNotEmpty) {
-    final name = products[0]['name'] as String?;
-    if (name != null && name.isNotEmpty) return name;
-  }
-  if (t['type'] == 'import') {
-    return t['supplier'] as String? ?? 'Nhập kho';
-  }
-  return t['customer'] as String? ?? 'Xuất kho';
-}
-
-String _transactionCode(Map<String, dynamic> t, String prefix) {
-  final firestoreId = t['firestoreId'] as String?;
-  final id = t['id'];
-  if (firestoreId != null && firestoreId.length >= 4) {
-    return '$prefix-${firestoreId.substring(0, 4).toUpperCase()}';
-  }
-  if (id != null) {
-    return '$prefix-${id.toString().padLeft(4, '0')}';
-  }
-  return '$prefix-0000';
-}
-
-String _formatTime(dynamic t) {
-  if (t is String) {
-    final dt = DateTime.tryParse(t);
-    if (dt != null) return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
-  }
-  return '';
 }

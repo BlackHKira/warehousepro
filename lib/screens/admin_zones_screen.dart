@@ -236,7 +236,6 @@ class _ZonesGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final counts = _productCounts;
-    final totalProducts = products.length;
 
     if (zones.isEmpty) {
       return Center(
@@ -256,78 +255,93 @@ class _ZonesGrid extends StatelessWidget {
     return Column(
       children: [
         Expanded(
-          child: GridView.builder(
+          child: Padding(
             padding: const EdgeInsets.all(12),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              childAspectRatio: 1.0,
-              crossAxisSpacing: 10,
-              mainAxisSpacing: 10,
-            ),
-            itemCount: zones.length,
-            itemBuilder: (_, i) {
-              final z = zones[i];
-              final productCount = counts[z.code] ?? 0;
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final rows = (zones.length / 2).ceil();
+                const spacing = 10.0;
+                final availH = constraints.maxHeight - (rows - 1) * spacing;
+                final rowH = availH / rows;
+                final cellW = (constraints.maxWidth - spacing) / 2;
+                final ratio = cellW / rowH;
 
-              return Card(
-                clipBehavior: Clip.antiAlias,
-                child: InkWell(
-                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AdminZoneDetailScreen(zone: z))),
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: _zoneColor(z.code).withValues(alpha: 0.3)),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              width: 32, height: 32,
-                              decoration: BoxDecoration(color: _zoneColor(z.code).withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
-                              child: Center(child: Text(z.code, style: TextStyle(color: _zoneColor(z.code), fontSize: 12, fontWeight: FontWeight.bold))),
-                            ),
-                            const Spacer(),
-                            Text('$productCount SP', style: TextStyle(color: AppColors.textMuted, fontSize: 11)),
-                            if (onEdit != null || onDelete != null) ...[
-                              const SizedBox(width: 4),
-                              PopupMenuButton<String>(
-                                padding: EdgeInsets.zero,
-                                iconSize: 18,
-                                icon: Icon(Icons.more_vert, size: 16, color: AppColors.textMuted),
-                                onSelected: (v) {
-                                  if (v == 'edit') onEdit?.call(z);
-                                  if (v == 'delete') onDelete?.call(z);
-                                },
-                                itemBuilder: (_) => [
-                                  const PopupMenuItem(value: 'edit', child: Row(children: [Icon(Icons.edit, size: 16), SizedBox(width: 8), Text('Sửa')])),
-                                  const PopupMenuItem(value: 'delete', child: Row(children: [Icon(Icons.delete, size: 16, color: AppColors.red), SizedBox(width: 8), Text('Xóa', style: TextStyle(color: AppColors.red))])),
+                return GridView.builder(
+                  physics: const NeverScrollableScrollPhysics(),
+                  padding: EdgeInsets.zero,
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    childAspectRatio: ratio,
+                    crossAxisSpacing: spacing,
+                    mainAxisSpacing: spacing,
+                  ),
+                  itemCount: zones.length,
+                  itemBuilder: (_, i) {
+                    final z = zones[i];
+                    final productCount = counts[z.code] ?? 0;
+
+                    return Card(
+                      clipBehavior: Clip.antiAlias,
+                      child: InkWell(
+                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AdminZoneDetailScreen(zone: z))),
+                        child: Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: _zoneColor(z.code).withValues(alpha: 0.3)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Container(
+                                    width: 32, height: 32,
+                                    decoration: BoxDecoration(color: _zoneColor(z.code).withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
+                                    child: Center(child: Text(z.code, style: TextStyle(color: _zoneColor(z.code), fontSize: 12, fontWeight: FontWeight.bold))),
+                                  ),
+                                  const Spacer(),
+                                  Text('$productCount SP', style: TextStyle(color: AppColors.textMuted, fontSize: 11)),
+                                  if (onEdit != null || onDelete != null) ...[
+                                    const SizedBox(width: 4),
+                                    PopupMenuButton<String>(
+                                      padding: EdgeInsets.zero,
+                                      iconSize: 18,
+                                      icon: Icon(Icons.more_vert, size: 16, color: AppColors.textMuted),
+                                      onSelected: (v) {
+                                        if (v == 'edit') onEdit?.call(z);
+                                        if (v == 'delete') onDelete?.call(z);
+                                      },
+                                      itemBuilder: (_) => [
+                                        const PopupMenuItem(value: 'edit', child: Row(children: [Icon(Icons.edit, size: 16), SizedBox(width: 8), Text('Sửa')])),
+                                        const PopupMenuItem(value: 'delete', child: Row(children: [Icon(Icons.delete, size: 16, color: AppColors.red), SizedBox(width: 8), Text('Xóa', style: TextStyle(color: AppColors.red))])),
+                                      ],
+                                    ),
+                                  ],
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              Text(z.label, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                              if (z.description.isNotEmpty) ...[
+                                const SizedBox(height: 2),
+                                Text(z.description, style: const TextStyle(color: AppColors.textMuted, fontSize: 10), maxLines: 2, overflow: TextOverflow.ellipsis),
+                              ],
+                              const Spacer(),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.end,
+                                children: [
+                                  Icon(Icons.arrow_forward_ios, size: 10, color: AppColors.textMuted),
                                 ],
                               ),
                             ],
-                          ],
+                          ),
                         ),
-                        const SizedBox(height: 8),
-                        Text(z.label, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-                        if (z.description.isNotEmpty) ...[
-                          const SizedBox(height: 2),
-                          Text(z.description, style: const TextStyle(color: AppColors.textMuted, fontSize: 10), maxLines: 2, overflow: TextOverflow.ellipsis),
-                        ],
-                        const Spacer(),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            Icon(Icons.arrow_forward_ios, size: 10, color: AppColors.textMuted),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            },
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
           ),
         ),
         Padding(
@@ -340,7 +354,7 @@ class _ZonesGrid extends StatelessWidget {
               children: [
                 const Icon(Icons.info_outline, size: 16, color: AppColors.primary),
                 const SizedBox(width: 8),
-                Text('Tổng cộng ${zones.length} khu vực · $totalProducts sản phẩm', style: TextStyle(color: AppColors.primary, fontSize: 12)),
+                Text('Tổng cộng ${zones.length} khu vực · ${products.length} sản phẩm', style: TextStyle(color: AppColors.primary, fontSize: 12)),
               ],
             ),
           ),

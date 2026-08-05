@@ -29,21 +29,21 @@ class ZoneService {
   }
 
   static const _defaultZoneData = [
-    {'code': 'A1', 'label': 'Khu A1', 'description': '', 'sortOrder': 1},
-    {'code': 'A2', 'label': 'Khu A2', 'description': '', 'sortOrder': 2},
-    {'code': 'B1', 'label': 'Khu B1', 'description': '', 'sortOrder': 3},
-    {'code': 'B2', 'label': 'Khu B2', 'description': '', 'sortOrder': 4},
-    {'code': 'C1', 'label': 'Khu C1', 'description': '', 'sortOrder': 5},
-    {'code': 'C2', 'label': 'Khu C2', 'description': '', 'sortOrder': 6},
+    {'code': 'A1', 'label': 'Khu A1', 'description': 'Nước ngọt có gas', 'sortOrder': 1},
+    {'code': 'A2', 'label': 'Khu A2', 'description': 'Nước ngọt có gas', 'sortOrder': 2},
+    {'code': 'B1', 'label': 'Khu B1', 'description': 'Nước tăng lực', 'sortOrder': 3},
+    {'code': 'B2', 'label': 'Khu B2', 'description': 'Nước tăng lực', 'sortOrder': 4},
+    {'code': 'C1', 'label': 'Khu C1', 'description': 'Nước lọc', 'sortOrder': 5},
+    {'code': 'C2', 'label': 'Khu C2', 'description': 'Trà', 'sortOrder': 6},
   ];
 
   static final defaultZones = [
-    Zone(id: 'A1', code: 'A1', label: 'Khu A1', sortOrder: 1),
-    Zone(id: 'A2', code: 'A2', label: 'Khu A2', sortOrder: 2),
-    Zone(id: 'B1', code: 'B1', label: 'Khu B1', sortOrder: 3),
-    Zone(id: 'B2', code: 'B2', label: 'Khu B2', sortOrder: 4),
-    Zone(id: 'C1', code: 'C1', label: 'Khu C1', sortOrder: 5),
-    Zone(id: 'C2', code: 'C2', label: 'Khu C2', sortOrder: 6),
+    Zone(id: 'A1', code: 'A1', label: 'Khu A1', description: 'Nước ngọt có gas', sortOrder: 1),
+    Zone(id: 'A2', code: 'A2', label: 'Khu A2', description: 'Nước ngọt có gas', sortOrder: 2),
+    Zone(id: 'B1', code: 'B1', label: 'Khu B1', description: 'Nước tăng lực', sortOrder: 3),
+    Zone(id: 'B2', code: 'B2', label: 'Khu B2', description: 'Nước tăng lực', sortOrder: 4),
+    Zone(id: 'C1', code: 'C1', label: 'Khu C1', description: 'Nước lọc', sortOrder: 5),
+    Zone(id: 'C2', code: 'C2', label: 'Khu C2', description: 'Trà', sortOrder: 6),
   ];
 
   Future<DocumentReference> addZone(Zone zone) => _zones.add(zone.toMap());

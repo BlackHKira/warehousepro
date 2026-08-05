@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_core/firebase_core.dart';
 import '../providers/user_profile_provider.dart';
 import '../providers/selected_tab_provider.dart';
 import '../providers/warehouse_provider.dart';
@@ -10,6 +13,7 @@ import 'dashboard_screen.dart';
 import 'import_screen.dart';
 import 'export_screen.dart';
 import 'search_screen.dart';
+import 'delivery_screen.dart';
 import 'login_screen.dart';
 import 'admin_inventory_screen.dart';
 import 'admin_reports_screen.dart';
@@ -31,7 +35,7 @@ class _MainShellState extends ConsumerState<MainShell> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
       final role = _resolveRole(widget.initialRole);
       final isAdmin = role == AppRole.admin;
@@ -43,7 +47,53 @@ class _MainShellState extends ConsumerState<MainShell> {
       );
       final savedTab = LocalStorageService().getTabIndex();
       ref.read(selectedTabProvider.notifier).state = savedTab;
+
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        try {
+          final db = FirebaseFirestore.instanceFor(
+            app: Firebase.app(),
+            databaseId: 'warehousepro-db',
+          );
+          final snapshot = await db
+              .collection('users')
+              .where('email', isEqualTo: user.email)
+              .limit(1)
+              .get();
+          if (snapshot.docs.isNotEmpty && mounted) {
+            final data = snapshot.docs.first.data();
+            final appRole = data['role'] != null
+                ? _mapRole(data['role'] as String)
+                : (isAdmin ? AppRole.admin : AppRole.staff);
+            ref.read(userProfileProvider.notifier).state = UserProfileState(
+              name: data['name'] ?? '',
+              email: data['email'] ?? '',
+              role: appRole,
+              rawRole: data['role'] ?? widget.initialRole,
+              phone: data['phone'] ?? '',
+              gender: data['gender'] ?? '',
+            );
+          }
+        } catch (_) {}
+      }
     });
+  }
+
+  AppRole _mapRole(String rawRole) {
+    switch (rawRole) {
+      case 'Quản lý':
+      case 'Quản lý kho':
+      case 'admin':
+      case 'manager':
+        return AppRole.admin;
+      case 'Kế toán':
+      case 'accountant':
+        return AppRole.accountant;
+      case 'Thủ kho':
+      case 'staff':
+      default:
+        return AppRole.staff;
+    }
   }
 
   @override
@@ -153,13 +203,17 @@ class _MainShellState extends ConsumerState<MainShell> {
                         children: [
                           _infoRow(
                             Icons.person,
-                            'Họ tên',
+                            'Họ và tên',
                             p?.name ?? 'Người dùng',
                           ),
                           const SizedBox(height: 8),
-                          _infoRow(Icons.email, 'Email', p?.email ?? ''),
+                          _infoRow(Icons.email, 'Gmail', p?.email ?? ''),
                           const SizedBox(height: 8),
-                          _infoRow(Icons.badge, 'Vai trò', p?.rawRole ?? ''),
+                          _infoRow(Icons.phone, 'Số điện thoại', p?.phone ?? ''),
+                          const SizedBox(height: 8),
+                          _infoRow(Icons.wc, 'Giới tính', p?.gender ?? ''),
+                          const SizedBox(height: 8),
+                          _infoRow(Icons.badge, 'Vị trí', p?.rawRole ?? ''),
                         ],
                       ),
                       actions: [
@@ -188,7 +242,7 @@ class _MainShellState extends ConsumerState<MainShell> {
                   children: [
                     Icon(Icons.person_outline, size: 20),
                     SizedBox(width: 10),
-                    Text('Thông tin'),
+                    Text('Xem thông tin'),
                   ],
                 ),
               ),
@@ -214,6 +268,30 @@ class _MainShellState extends ConsumerState<MainShell> {
       bottomNavigationBar: NavigationBar(
         selectedIndex: safeIndex,
         onDestinationSelected: (i) {
+          if (i == 4) {
+            showDialog(
+              context: context,
+              builder: (_) => AlertDialog(
+                title: const Text('Chú ý'),
+                content: const Text('Trang chỉ dành cho ship'),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Thoát'),
+                  ),
+                  FilledButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      ref.read(selectedTabProvider.notifier).state = i;
+                      LocalStorageService().saveTabIndex(i);
+                    },
+                    child: const Text('OK'),
+                  ),
+                ],
+              ),
+            );
+            return;
+          }
           ref.read(selectedTabProvider.notifier).state = i;
           LocalStorageService().saveTabIndex(i);
         },
@@ -259,6 +337,12 @@ const _staffTabs = [
     'Xuất',
   ),
   _TabDef(SearchScreen(embedded: true), Icons.search, Icons.search, 'Tra cứu'),
+  _TabDef(
+    DeliveryScreen(embedded: true),
+    Icons.local_shipping_outlined,
+    Icons.local_shipping,
+    'Giao hàng',
+  ),
 ];
 
 const _adminTabs = [
@@ -324,9 +408,15 @@ const _analystTabs = [
 AppRole _resolveRole(String rawRole) {
   switch (rawRole) {
     case 'Quản lý':
+    case 'Quản lý kho':
+    case 'admin':
+    case 'manager':
       return AppRole.admin;
     case 'Kế toán':
+    case 'accountant':
       return AppRole.accountant;
+    case 'Thủ kho':
+    case 'staff':
     default:
       return AppRole.staff;
   }
