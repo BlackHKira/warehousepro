@@ -94,14 +94,36 @@ class _CreateExportTabState extends ConsumerState<_CreateExportTab> {
               if (products.isEmpty) return;
               final product = products[rng.nextInt(products.length)];
               final qty = 1 + rng.nextInt(10);
-              _addItem(product.name, product.barcode, qty, product.zone, product.unitPerCase);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    'Đã quét: ${product.name} — $qty thùng',
+              String pickedZone = zones.isNotEmpty ? zones.first.code : product.zone;
+              showDialog(
+                context: context,
+                builder: (dlgCtx) => StatefulBuilder(
+                  builder: (dlgCtx, setDialogState) => AlertDialog(
+                    title: const Text('Chọn khu vực'),
+                    content: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text('${product.name} — $qty thùng', style: const TextStyle(fontWeight: FontWeight.w600)),
+                        const SizedBox(height: 12),
+                        DropdownButtonFormField<String>(
+                          initialValue: pickedZone,
+                          decoration: const InputDecoration(labelText: 'Khu vực xuất', border: OutlineInputBorder()),
+                          items: zones.map((z) => DropdownMenuItem(value: z.code, child: Text('${z.code} — ${z.label}', style: const TextStyle(fontSize: 14)))).toList(),
+                          onChanged: (v) => setDialogState(() => pickedZone = v ?? pickedZone),
+                        ),
+                      ],
+                    ),
+                    actions: [
+                      TextButton(onPressed: () => Navigator.pop(dlgCtx), child: const Text('Huỷ')),
+                      FilledButton(
+                        onPressed: () {
+                          _addItem(product.name, product.barcode, qty, pickedZone, product.unitPerCase);
+                          Navigator.pop(dlgCtx);
+                        },
+                        child: const Text('Thêm'),
+                      ),
+                    ],
                   ),
-                  behavior: SnackBarBehavior.floating,
-                  duration: const Duration(seconds: 1),
                 ),
               );
             },
@@ -141,6 +163,7 @@ class _CreateExportTabState extends ConsumerState<_CreateExportTab> {
                   onTap: () async {
                     final products =
                         ref.read(productsProvider).valueOrNull ?? [];
+                    final zoneProducts = products.where((p) => p.getStockInZone(selectedZone) > 0).toList();
                     final selected = await showModalBottomSheet<Product>(
                       context: ctx,
                       isScrollControlled: true,
@@ -149,7 +172,7 @@ class _CreateExportTabState extends ConsumerState<_CreateExportTab> {
                           top: Radius.circular(16),
                         ),
                       ),
-                      builder: (_) => _ProductPickerSheet(products: products),
+                      builder: (_) => _ProductPickerSheet(products: zoneProducts, selectedZone: selectedZone),
                     );
                     if (selected != null) {
                       setDialogState(() {
@@ -158,7 +181,6 @@ class _CreateExportTabState extends ConsumerState<_CreateExportTab> {
                         selectedUnitPerCase = selected.unitPerCase;
                         filteredZones = zones.where((z) => z.description.contains(selected.category)).toList();
                         if (filteredZones.isEmpty) filteredZones = zones;
-                        selectedZone = selected.zone;
                       });
                     }
                   },
@@ -326,7 +348,7 @@ class _CreateExportTabState extends ConsumerState<_CreateExportTab> {
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  value: _selectedStatus,
+                  initialValue: _selectedStatus,
                   decoration: const InputDecoration(
                     labelText: 'Trạng thái',
                     prefixIcon: Icon(Icons.flag_outlined),
@@ -519,7 +541,8 @@ class _ExportItem {
 
 class _ProductPickerSheet extends StatefulWidget {
   final List<Product> products;
-  const _ProductPickerSheet({required this.products});
+  final String selectedZone;
+  const _ProductPickerSheet({required this.products, this.selectedZone = 'A1'});
 
   @override
   State<_ProductPickerSheet> createState() => _ProductPickerSheetState();
@@ -621,7 +644,7 @@ class _ProductPickerSheetState extends State<_ProductPickerSheet> {
                   return ListTile(
                     title: Text(p.name),
                     subtitle: Text(
-                      '${p.barcode} • ${p.zone} • Tồn: ${formatStock(p.stock, p.unitPerCase, p.unit)}',
+                      '${p.barcode} • ${p.zone} • Tồn: ${formatStock(p.getStockInZone(widget.selectedZone), p.unitPerCase, p.unit)}',
                     ),
                     onTap: () => Navigator.pop(context, p),
                   );
