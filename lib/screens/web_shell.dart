@@ -59,14 +59,10 @@ class _WebShellState extends ConsumerState<WebShell> {
 
   @override
   Widget build(BuildContext context) {
-    final profile = ref.watch(userProfileProvider);
     final safeIndex = widget.selectedIndex < widget.tabs.length
         ? widget.selectedIndex
         : 0;
     final active = widget.tabs[safeIndex];
-    final url = active.path.isEmpty
-        ? 'warehousepro.vn/${widget.rolePath}'
-        : 'warehousepro.vn/${widget.rolePath}/${active.path}';
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -91,72 +87,30 @@ class _WebShellState extends ConsumerState<WebShell> {
                 ],
               ),
               clipBehavior: Clip.antiAlias,
-              child: Column(
+              child: Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _deskbar(url),
+                  _sidebar(safeIndex),
                   Expanded(
-                    child: Row(
+                    child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        _sidebar(safeIndex),
+                        _workHeader(active),
                         Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              _workHeader(active),
-                              Expanded(
-                                child: IndexedStack(
-                                  index: safeIndex,
-                                  children:
-                                      widget.tabs.map((t) => t.screen).toList(),
-                                ),
-                              ),
-                            ],
+                          child: IndexedStack(
+                            index: safeIndex,
+                            children:
+                                widget.tabs.map((t) => t.screen).toList(),
                           ),
                         ),
                       ],
                     ),
                   ),
-                  _footerBar(profile?.name ?? ''),
                 ],
               ),
             ),
           );
         },
-      ),
-    );
-  }
-
-  Widget _deskbar(String url) {
-    return Container(
-      height: 36,
-      padding: const EdgeInsets.symmetric(horizontal: 13),
-      decoration: const BoxDecoration(
-        color: AppColors.background,
-        border: Border(bottom: BorderSide(color: AppColors.border)),
-      ),
-      child: Row(
-        children: [
-          const _Dot(color: Color(0xFFF87171)),
-          const SizedBox(width: 7),
-          const _Dot(color: Color(0xFFFBBF24)),
-          const SizedBox(width: 7),
-          const _Dot(color: Color(0xFF34D399)),
-          const SizedBox(width: 10),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              border: Border.all(color: AppColors.border),
-              borderRadius: BorderRadius.circular(7),
-            ),
-            child: Text(
-              url,
-              style: const TextStyle(fontSize: 11.5, color: AppColors.textMuted),
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -416,42 +370,6 @@ class _WebShellState extends ConsumerState<WebShell> {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _footerBar(String name) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 9),
-      decoration: const BoxDecoration(
-        border: Border(top: BorderSide(color: AppColors.border)),
-      ),
-      child: Row(
-        children: [
-          Text(
-            'WarehousePro · ${widget.roleName}',
-            style: const TextStyle(fontSize: 11.5, color: AppColors.textMuted),
-          ),
-          const Spacer(),
-          Text(
-            'Đăng nhập: $name',
-            style: const TextStyle(fontSize: 11.5, color: AppColors.textMuted),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _Dot extends StatelessWidget {
-  final Color color;
-  const _Dot({required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 10,
-      height: 10,
-      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
     );
   }
 }
