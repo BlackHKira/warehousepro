@@ -422,6 +422,22 @@ class WarehouseNotifier extends StateNotifier<WarehouseState> {
         if (localId is int) {
           await _db.markAsSynced(localId, docRef.id);
         }
+        try {
+          final items = entry['products'] as List<dynamic>? ?? [];
+          final isImport = entry['type'] == 'import';
+          for (final item in items) {
+            final barcode = item['barcode'] as String? ?? '';
+            final qty = (item['quantity'] as num?)?.toInt() ?? 0;
+            if (barcode.isEmpty || qty == 0) continue;
+            await _productService.updateStockByBarcode(
+              barcode,
+              isImport ? qty : -qty,
+              zone: isImport
+                  ? (item['zone'] as String? ?? entry['zone'] as String?)
+                  : null,
+            );
+          }
+        } catch (_) {}
       }
 
       await _pullFromFirestore();

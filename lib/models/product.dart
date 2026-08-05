@@ -86,6 +86,11 @@ class Product {
         'updatedAt': updatedAt?.toIso8601String(),
       };
 
+  String get location {
+    if (zone.isNotEmpty) return '$zone-$id';
+    return '';
+  }
+
   bool get isLowStock => stock <= minStock;
   bool get isOutOfStock => stock == 0;
 

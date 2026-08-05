@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'main_shell.dart';
 import 'register_screen.dart';
@@ -49,45 +51,19 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isLoading = true);
 
-    if (email == 'admin@gmail.com' && password == 'admin123') {
-      await Future.delayed(const Duration(milliseconds: 600));
-      if (!mounted) return;
-      LocalStorageService().saveRole('Quản lý');
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => const MainShell(initialRole: 'Quản lý'),
-        ),
-      );
-      if (mounted) setState(() => _isLoading = false);
-      return;
-    }
-
-    if (email == 'user@gmail.com' && password == 'user123') {
-      await Future.delayed(const Duration(milliseconds: 600));
-      if (!mounted) return;
-      LocalStorageService().saveRole('Thủ kho');
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => const MainShell(initialRole: 'Thủ kho'),
-        ),
-      );
-      if (mounted) setState(() => _isLoading = false);
-      return;
-    }
-
     try {
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
+      final cred = await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
       if (!mounted) return;
-      LocalStorageService().saveRole('Thủ kho');
+      final role = await _fetchUserRole(cred.user!.uid);
+      if (!mounted) return;
+      LocalStorageService().saveRole(role);
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (_) => const MainShell(initialRole: 'Thủ kho'),
+          builder: (_) => MainShell(initialRole: role),
         ),
       );
     } on FirebaseAuthException catch (e) {
@@ -101,6 +77,18 @@ class _LoginScreenState extends State<LoginScreen> {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  Future<String> _fetchUserRole(String uid) async {
+    try {
+      final doc = await FirebaseFirestore.instanceFor(
+        app: Firebase.app(),
+        databaseId: 'warehousepro-db',
+      ).collection('users').doc(uid).get();
+      final role = doc.data()?['role'] as String?;
+      if (role != null && role.isNotEmpty) return role;
+    } catch (_) {}
+    return 'Thủ kho';
   }
 
   void _goToRegister() {
@@ -125,11 +113,13 @@ class _LoginScreenState extends State<LoginScreen> {
       );
       await FirebaseAuth.instance.signInWithCredential(credential);
       if (!mounted) return;
-      LocalStorageService().saveRole('Thủ kho');
+      final role = await _fetchUserRole(FirebaseAuth.instance.currentUser!.uid);
+      if (!mounted) return;
+      LocalStorageService().saveRole(role);
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (_) => const MainShell(initialRole: 'Thủ kho'),
+          builder: (_) => MainShell(initialRole: role),
         ),
       );
     } catch (e) {
@@ -389,22 +379,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                   const SizedBox(height: 20),
-                  // Bottom text
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Text(
-                        'admin@gmail.com/admin123',
-                        style: TextStyle(color: Color(0xFF22C55E), fontSize: 12),
-                      ),
-                      const SizedBox(width: 8),
-                      const Text(
-                        'để thử nghiệm',
-                        style: TextStyle(color: Colors.white, fontSize: 12),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
                 ],
               ),
             ),
