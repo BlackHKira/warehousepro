@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/warehouse_provider.dart';
@@ -69,12 +70,14 @@ class _WebShellState extends ConsumerState<WebShell> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: SingleChildScrollView(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 1500),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final width = max(0.0, min(constraints.maxWidth - 48, 1500.0));
+          final height = max(0.0, constraints.maxHeight - 48);
+          return Center(
             child: Container(
-              margin: const EdgeInsets.all(24),
+              width: width,
+              height: height,
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(14),
@@ -92,7 +95,7 @@ class _WebShellState extends ConsumerState<WebShell> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   _deskbar(url),
-                  IntrinsicHeight(
+                  Expanded(
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
@@ -119,8 +122,8 @@ class _WebShellState extends ConsumerState<WebShell> {
                 ],
               ),
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }
