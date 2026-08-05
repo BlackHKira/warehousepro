@@ -275,10 +275,20 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                   children: filtered.map((p) => Card(
                     child: ListTile(
                       onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ProductDetailScreen(productId: p.id))),
-                      leading: Container(
-                        width: 44, height: 44,
-                        decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
-                        child: const Icon(Icons.inventory_2_outlined, color: AppColors.primary),
+                      leading: ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: p.imageUrl.isNotEmpty
+                            ? Image.network(p.imageUrl, width: 44, height: 44, fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => Container(
+                                  width: 44, height: 44,
+                                  color: AppColors.primary.withValues(alpha: 0.1),
+                                  child: const Icon(Icons.inventory_2_outlined, color: AppColors.primary),
+                                ))
+                            : Container(
+                                width: 44, height: 44,
+                                color: AppColors.primary.withValues(alpha: 0.1),
+                                child: const Icon(Icons.inventory_2_outlined, color: AppColors.primary),
+                              ),
                       ),
                       title: Text(p.name, style: const TextStyle(fontWeight: FontWeight.w500)),
                       subtitle: Row(
