@@ -1,4 +1,3 @@
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/warehouse_provider.dart';
@@ -66,51 +65,25 @@ class _WebShellState extends ConsumerState<WebShell> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          final width = max(0.0, min(constraints.maxWidth - 48, 1500.0));
-          final height = max(0.0, constraints.maxHeight - 48);
-          return Center(
-            child: Container(
-              width: width,
-              height: height,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: const Color(0xFFCBD5E1)),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.12),
-                    blurRadius: 50,
-                    offset: const Offset(0, 20),
+      body: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _sidebar(safeIndex),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _workHeader(active),
+                Expanded(
+                  child: IndexedStack(
+                    index: safeIndex,
+                    children: widget.tabs.map((t) => t.screen).toList(),
                   ),
-                ],
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _sidebar(safeIndex),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        _workHeader(active),
-                        Expanded(
-                          child: IndexedStack(
-                            index: safeIndex,
-                            children:
-                                widget.tabs.map((t) => t.screen).toList(),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
-          );
-        },
+          ),
+        ],
       ),
     );
   }
