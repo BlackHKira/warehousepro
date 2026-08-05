@@ -2,7 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:excel/excel.dart';
+import 'package:excel/excel.dart' hide Border;
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
 import '../providers/product_provider.dart';
@@ -26,7 +26,52 @@ class ReportExportScreen extends ConsumerWidget {
         final totalStock = products.fold(0, (s, p) => s + p.stock);
         final lowStock = products.where((p) => p.isLowStock).length;
 
-        return ListView(
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            if (constraints.maxWidth > 800) {
+              return SingleChildScrollView(
+                padding: const EdgeInsets.all(22),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Wrap(
+                      spacing: 14,
+                      runSpacing: 14,
+                      children: [
+                        _WebStat(icon: Icons.inventory_2, label: 'Tổng tồn', value: '$totalStock', color: AppColors.primary),
+                        _WebStat(icon: Icons.category, label: 'Sản phẩm', value: '${products.length}', color: AppColors.green),
+                        _WebStat(icon: Icons.warning_amber, label: 'Sắp hết', value: '$lowStock', color: AppColors.orange),
+                        _WebStat(icon: Icons.swap_horiz, label: 'Xuất hôm nay', value: '${warehouse.todayExports}', color: AppColors.red),
+                      ],
+                    ),
+                    const SizedBox(height: 22),
+                    _ExportForm(
+                      onExport: () => _exportExcel(context, ref, products),
+                      onCopy: () => _copyReport(context, products, warehouse),
+                    ),
+                  ],
+                ),
+              );
+            }
+            return _mobileList(context, ref, products, warehouse, totalStock, lowStock);
+          },
+        );
+      },
+    );
+
+    if (embedded) return body;
+    return Scaffold(appBar: AppBar(title: const Text('Xuất báo cáo')), body: body);
+  }
+
+  Widget _mobileList(
+    BuildContext context,
+    WidgetRef ref,
+    List<Product> products,
+    WarehouseState warehouse,
+    int totalStock,
+    int lowStock,
+  ) {
+    return ListView(
           padding: const EdgeInsets.all(16),
           children: [
             Row(
@@ -94,11 +139,6 @@ class ReportExportScreen extends ConsumerWidget {
             )),
           ],
         );
-      },
-    );
-
-    if (embedded) return body;
-    return Scaffold(appBar: AppBar(title: const Text('Xuất báo cáo')), body: body);
   }
 
   Future<void> _exportExcel(
@@ -303,6 +343,209 @@ class _ReportStat extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _WebStat extends StatelessWidget {
+  final IconData icon;
+  final String label, value;
+  final Color color;
+  const _WebStat({required this.icon, required this.label, required this.value, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 200,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: AppColors.border),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: color, size: 22),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.6,
+                    color: color,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ExportForm extends StatefulWidget {
+  final VoidCallback onExport;
+  final VoidCallback onCopy;
+  const _ExportForm({required this.onExport, required this.onCopy});
+
+  @override
+  State<_ExportForm> createState() => _ExportFormState();
+}
+
+class _ExportFormState extends State<_ExportForm> {
+  String _type = 'Tồn kho';
+  final _startCtrl = TextEditingController();
+  final _endCtrl = TextEditingController();
+  bool _includeValue = true;
+
+  static const _reportTypes = [
+    'Tồn kho',
+    'Lịch sử nhập / xuất',
+    'Giá trị theo khu vực',
+    'Tổng hợp theo tháng',
+  ];
+
+  @override
+  void dispose() {
+    _startCtrl.dispose();
+    _endCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 520,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: AppColors.border),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Xuất báo cáo',
+            style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'File Excel dùng cho kế toán và quản lý',
+            style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+          ),
+          const SizedBox(height: 18),
+          Text(
+            'Loại báo cáo',
+            style: _labelStyle,
+          ),
+          const SizedBox(height: 6),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              border: Border.all(color: AppColors.border),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                value: _type,
+                isExpanded: true,
+                style: const TextStyle(fontSize: 14, color: AppColors.textPrimary),
+                items: _reportTypes
+                    .map((t) => DropdownMenuItem(value: t, child: Text(t)))
+                    .toList(),
+                onChanged: (v) => setState(() => _type = v!),
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: _dateField('Từ ngày', _startCtrl, '01/08/2026'),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _dateField('Đến ngày', _endCtrl, '31/08/2026'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          CheckboxListTile(
+            value: _includeValue,
+            onChanged: (v) => setState(() => _includeValue = v ?? false),
+            title: const Text(
+              'Bao gồm giá trị thành tiền',
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w400),
+            ),
+            contentPadding: EdgeInsets.zero,
+            controlAffinity: ListTileControlAffinity.leading,
+            dense: true,
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            height: 46,
+            child: FilledButton.icon(
+              onPressed: widget.onExport,
+              icon: const Icon(Icons.file_download_outlined, size: 18),
+              label: const Text('Xuất file Excel'),
+            ),
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            height: 44,
+            child: OutlinedButton.icon(
+              onPressed: widget.onCopy,
+              icon: const Icon(Icons.copy_outlined, size: 18),
+              label: const Text('Sao chép nội dung'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  TextStyle get _labelStyle => const TextStyle(
+        fontSize: 12,
+        fontWeight: FontWeight.w600,
+        color: AppColors.textSecondary,
+      );
+
+  Widget _dateField(String label, TextEditingController ctrl, String hint) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: _labelStyle),
+        const SizedBox(height: 6),
+        TextField(
+          controller: ctrl,
+          decoration: InputDecoration(hintText: hint, isDense: true),
+        ),
+      ],
     );
   }
 }

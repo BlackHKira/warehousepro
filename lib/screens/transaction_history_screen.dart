@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/warehouse_provider.dart';
 import '../theme/app_theme.dart';
+import '../widgets/web_table.dart';
 
 enum _RangeFilter { today, yesterday, week, all }
+enum _TypeFilter { all, import, export }
 
 class TransactionHistoryScreen extends ConsumerStatefulWidget {
   final bool embedded;
@@ -17,6 +19,7 @@ class TransactionHistoryScreen extends ConsumerStatefulWidget {
 class _TransactionHistoryScreenState
     extends ConsumerState<TransactionHistoryScreen> {
   _RangeFilter _filter = _RangeFilter.week;
+  _TypeFilter _type = _TypeFilter.all;
   DateTime? _customStart;
   DateTime? _customEnd;
 
@@ -86,6 +89,8 @@ class _TransactionHistoryScreenState
       if (createdAt == null) return false;
       if (start != null && createdAt.isBefore(start)) return false;
       if (endExclusive != null && !createdAt.isBefore(endExclusive)) return false;
+      if (_type == _TypeFilter.import && e['type'] != 'import') return false;
+      if (_type == _TypeFilter.export && e['type'] == 'import') return false;
       return true;
     }).toList()
       ..sort((a, b) => (b['createdAt'] as String? ?? '')
@@ -100,7 +105,29 @@ class _TransactionHistoryScreenState
 
     final groups = _groupByDay(filtered);
 
-    final body = Column(
+    final body = LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth > 800) {
+          return _webBody(filtered, totalImport, totalExport);
+        }
+        return _mobileBody(filtered, totalImport, totalExport, groups);
+      },
+    );
+
+    if (widget.embedded) return body;
+    return Scaffold(
+      appBar: AppBar(title: const Text('Lịch sử giao dịch')),
+      body: body,
+    );
+  }
+
+  Widget _mobileBody(
+    List<Map<String, dynamic>> filtered,
+    int totalImport,
+    int totalExport,
+    List<_TxGroup> groups,
+  ) {
+    return Column(
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
@@ -211,12 +238,129 @@ class _TransactionHistoryScreenState
         ),
       ],
     );
+  }
 
-    if (widget.embedded) return body;
-    return Scaffold(
-      appBar: AppBar(title: const Text('Lịch sử giao dịch')),
-      body: body,
+  Widget _webBody(
+    List<Map<String, dynamic>> filtered,
+    int totalImport,
+    int totalExport,
+  ) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(22),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              _rangeChip(_RangeFilter.today, 'Hôm nay'),
+              _rangeChip(_RangeFilter.yesterday, 'Hôm qua'),
+              _rangeChip(_RangeFilter.week, '7 ngày'),
+              _rangeChip(
+                _RangeFilter.all,
+                _customStart != null ? 'Tùy chọn' : 'Tất cả',
+              ),
+              IconButton(
+                tooltip: 'Chọn khoảng ngày',
+                icon: const Icon(Icons.date_range_outlined),
+                onPressed: _pickRange,
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                decoration: BoxDecoration(
+                  border: Border.all(color: AppColors.border),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<_TypeFilter>(
+                    value: _type,
+                    style: const TextStyle(fontSize: 13, color: AppColors.textPrimary),
+                    items: const [
+                      DropdownMenuItem(value: _TypeFilter.all, child: Text('Tất cả loại')),
+                      DropdownMenuItem(value: _TypeFilter.import, child: Text('Nhập kho')),
+                      DropdownMenuItem(value: _TypeFilter.export, child: Text('Xuất kho')),
+                    ],
+                    onChanged: (v) => setState(() => _type = v!),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Text(
+                'Phạm vi: $_rangeLabel',
+                style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+              ),
+              const Spacer(),
+              Text(
+                '${filtered.length} giao dịch',
+                style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 14,
+            runSpacing: 10,
+            children: [
+              _WebStatBox(label: 'Tổng nhập', value: '$totalImport', color: AppColors.green),
+              _WebStatBox(label: 'Tổng xuất', value: '$totalExport', color: AppColors.red),
+              _WebStatBox(label: 'Chênh lệch', value: '${totalImport - totalExport}', color: AppColors.primary),
+            ],
+          ),
+          const SizedBox(height: 14),
+          WebTable(
+            minWidth: 900,
+            headers: const ['Mã phiếu', 'Loại', 'Thời gian', 'Sản phẩm', 'SL', 'Bên liên quan'],
+            rows: [
+              for (final e in filtered)
+                _txRow(e),
+            ],
+            cellAligns: const [null, null, null, null, TextAlign.right, null],
+          ),
+        ],
+      ),
     );
+  }
+
+  List<Widget> _txRow(Map<String, dynamic> e) {
+    final isImport = e['type'] == 'import';
+    final color = isImport ? AppColors.green : AppColors.red;
+    final prefix = isImport ? 'NK' : 'XK';
+    final id = (e['firestoreId'] ?? e['id'] ?? '').toString();
+    final code = id.length >= 4 ? '$prefix-${id.substring(0, 4).toUpperCase()}' : '$prefix-0000';
+    final partner = (isImport ? e['supplier'] : e['customer']) as String? ?? '';
+    final name = _txTitle(e);
+    final items = (e['items'] as num?)?.toInt() ?? 0;
+    return [
+      Text(code, style: const TextStyle(fontWeight: FontWeight.w600)),
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(99),
+        ),
+        child: Text(
+          isImport ? 'Nhập' : 'Xuất',
+          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: color),
+        ),
+      ),
+      Text(
+        _fullTime(e['createdAt'] as String?),
+        style: const TextStyle(color: AppColors.textSecondary),
+      ),
+      Text(name),
+      Text(
+        '${isImport ? '+' : '-'}$items',
+        style: TextStyle(fontWeight: FontWeight.w700, color: color),
+      ),
+      Text(partner, style: const TextStyle(color: AppColors.textSecondary)),
+    ];
   }
 
   Widget _rangeChip(_RangeFilter value, String label) {
@@ -365,6 +509,45 @@ class _MiniStat extends StatelessWidget {
   }
 }
 
+class _WebStatBox extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color color;
+  const _WebStatBox({required this.label, required this.value, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 200,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        border: Border.all(color: AppColors.border),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: TextStyle(
+              fontWeight: FontWeight.w800,
+              fontSize: 22,
+              letterSpacing: -0.6,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _TxEmptyState extends StatelessWidget {
   const _TxEmptyState();
 
@@ -418,4 +601,10 @@ String _timeOnly(String? createdAt) {
   final dt = DateTime.tryParse(createdAt ?? '');
   if (dt == null) return '';
   return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+}
+
+String _fullTime(String? createdAt) {
+  final dt = DateTime.tryParse(createdAt ?? '');
+  if (dt == null) return '';
+  return '${_fmtDay(dt)} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
 }

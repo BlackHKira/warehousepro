@@ -6,6 +6,7 @@ import '../providers/warehouse_provider.dart' show warehouseProvider;
 import '../providers/product_provider.dart';
 import '../providers/user_profile_provider.dart';
 import '../theme/app_theme.dart';
+import '../widgets/web_table.dart';
 
 class AnalystDashboardScreen extends ConsumerWidget {
   final bool embedded;
@@ -21,7 +22,32 @@ class AnalystDashboardScreen extends ConsumerWidget {
     final lowStock = products.where((p) => p.isLowStock).length;
     final userName = profile?.name ?? 'Người dùng';
 
-    final body = SingleChildScrollView(
+    final body = LayoutBuilder(
+      builder: (context, constraints) {
+        final isWide = constraints.maxWidth > 800;
+        if (!isWide) {
+          return _mobileBody(userName, totalStock, products.length, lowStock, warehouse, products);
+        }
+        return _webBody(totalStock, products.length, lowStock, warehouse, products);
+      },
+    );
+
+    if (embedded) return body;
+    return Scaffold(
+      appBar: AppBar(title: const Text('Tổng quan')),
+      body: body,
+    );
+  }
+
+  Widget _mobileBody(
+    String userName,
+    int totalStock,
+    int productCount,
+    int lowStock,
+    warehouse,
+    List products,
+  ) {
+    return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -75,7 +101,7 @@ class AnalystDashboardScreen extends ConsumerWidget {
                   children: [
                     Expanded(child: _DashStat(icon: Icons.inventory_2_outlined, label: 'Tổng tồn', value: '$totalStock', color: AppColors.primary)),
                     const SizedBox(width: 10),
-                    Expanded(child: _DashStat(icon: Icons.category_outlined, label: 'Sản phẩm', value: '${products.length}', color: AppColors.green)),
+                    Expanded(child: _DashStat(icon: Icons.category_outlined, label: 'Sản phẩm', value: '$productCount', color: AppColors.green)),
                   ],
                 ),
                 const SizedBox(height: 10),
@@ -148,12 +174,82 @@ class AnalystDashboardScreen extends ConsumerWidget {
         ],
       ),
     );
+  }
 
-    if (embedded) return body;
-    return Scaffold(
-      appBar: AppBar(title: const Text('Tổng quan')),
-      body: body,
+  Widget _webBody(
+    int totalStock,
+    int productCount,
+    int lowStock,
+    warehouse,
+    List products,
+  ) {
+    final importCount = _countThisMonth(warehouse.recentImports);
+    final exportCount = _countThisMonth(warehouse.recentExports);
+    final lowStockProducts = products.where((p) => p.isLowStock).toList()
+      ..sort((a, b) => a.stock.compareTo(b.stock));
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(22),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 14,
+            runSpacing: 14,
+            children: [
+              _WebStat(icon: Icons.inventory_2_outlined, label: 'Giá trị tồn kho', value: '$totalStock', color: AppColors.primary),
+              _WebStat(icon: Icons.add_box_outlined, label: 'Phiếu nhập tháng', value: '$importCount', color: AppColors.green),
+              _WebStat(icon: Icons.outbox_outlined, label: 'Phiếu xuất tháng', value: '$exportCount', color: AppColors.orange),
+              _WebStat(icon: Icons.warning_amber, label: 'Sắp hết hàng', value: '$lowStock', color: AppColors.red),
+            ],
+          ),
+          const SizedBox(height: 22),
+          const _SectionTitle('Nhập / Xuất theo tháng'),
+          const SizedBox(height: 10),
+          _AnalystChart(imports: warehouse.recentImports, exports: warehouse.recentExports),
+          const SizedBox(height: 22),
+          const _SectionTitle('Tồn kho theo khu vực'),
+          const SizedBox(height: 10),
+          _ZoneGrid(products: products),
+          const SizedBox(height: 22),
+          const _SectionTitle('Sản phẩm tồn thấp'),
+          const SizedBox(height: 10),
+          WebTable(
+            minWidth: 700,
+            headers: const ['Sản phẩm', 'Khu vực', 'Vị trí', 'Tồn kho'],
+            rows: [
+              for (final p in lowStockProducts.take(10))
+                [
+                  Text(p.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+                  _ZoneChip(code: p.zone),
+                  Text(p.location, style: const TextStyle(color: AppColors.textSecondary)),
+                  Text(
+                    formatStockDetail(p.stock, p.unitPerCase),
+                    style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.red),
+                  ),
+                ],
+            ],
+            cellAligns: const [null, null, null, TextAlign.right],
+          ),
+          if (lowStockProducts.isEmpty)
+            const Padding(
+              padding: EdgeInsets.only(top: 8),
+              child: Text(
+                'Không có sản phẩm nào sắp hết',
+                style: TextStyle(color: AppColors.textMuted, fontSize: 13),
+              ),
+            ),
+        ],
+      ),
     );
+  }
+
+  int _countThisMonth(List<Map<String, dynamic>> entries) {
+    final now = DateTime.now();
+    return entries.where((e) {
+      final dt = DateTime.tryParse(e['createdAt'] as String? ?? '');
+      return dt != null && dt.year == now.year && dt.month == now.month;
+    }).length;
   }
 }
 
@@ -190,6 +286,203 @@ class _DashStat extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _WebStat extends StatelessWidget {
+  final IconData icon;
+  final String label, value;
+  final Color color;
+  const _WebStat({required this.icon, required this.label, required this.value, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 190,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: AppColors.border),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: color, size: 22),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.6,
+                    color: color,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SectionTitle extends StatelessWidget {
+  final String text;
+  const _SectionTitle(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+    );
+  }
+}
+
+class _ZoneChip extends StatelessWidget {
+  final String code;
+  const _ZoneChip({required this.code});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = _zoneColor(code);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(99),
+      ),
+      child: Text(
+        code,
+        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: color),
+      ),
+    );
+  }
+
+  Color _zoneColor(String code) {
+    if (code.startsWith('A')) return AppColors.primary;
+    if (code.startsWith('B')) return AppColors.green;
+    if (code.startsWith('C')) return AppColors.orange;
+    return Colors.grey;
+  }
+}
+
+class _ZoneGrid extends StatelessWidget {
+  final List products;
+  const _ZoneGrid({required this.products});
+
+  @override
+  Widget build(BuildContext context) {
+    final zones = <String, int>{};
+    for (final p in products) {
+      zones[p.zone] = (zones[p.zone] ?? 0) + (p.stock as int);
+    }
+    final sortedZones = zones.entries.toList()..sort((a, b) => a.key.compareTo(b.key));
+    if (sortedZones.isEmpty) {
+      return Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Text(
+            'Chưa có dữ liệu',
+            style: TextStyle(color: AppColors.textMuted),
+          ),
+        ),
+      );
+    }
+    return Wrap(
+      spacing: 14,
+      runSpacing: 14,
+      children: sortedZones.map((e) {
+        final color = _zoneColor(e.key);
+        return Container(
+          width: 240,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            border: Border.all(color: AppColors.border),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Center(
+                  child: Text(
+                    e.key,
+                    style: TextStyle(
+                      color: color,
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Khu ${e.key}',
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${e.value} sản phẩm',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textMuted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Text(
+                '${e.value}',
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 16,
+                  color: color,
+                ),
+              ),
+            ],
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Color _zoneColor(String code) {
+    if (code.startsWith('A')) return AppColors.primary;
+    if (code.startsWith('B')) return AppColors.green;
+    if (code.startsWith('C')) return AppColors.orange;
+    return Colors.grey;
   }
 }
 

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/product_provider.dart';
 import '../models/product.dart';
 import '../theme/app_theme.dart';
+import '../widgets/web_table.dart';
 
 class AdminInventoryScreen extends ConsumerWidget {
   final bool embedded;
@@ -61,6 +62,16 @@ class _InventoryBodyState extends State<_InventoryBody> {
   Widget build(BuildContext context) {
     final filtered = _filtered;
 
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isWide = constraints.maxWidth > 800;
+        if (!isWide) return _mobile(filtered);
+        return _web(filtered);
+      },
+    );
+  }
+
+  Widget _mobile(List<Product> filtered) {
     return Column(
       children: [
         Padding(
@@ -144,10 +155,154 @@ class _InventoryBodyState extends State<_InventoryBody> {
     );
   }
 
+  Widget _web(List<Product> filtered) {
+    final total = filtered.fold(0, (s, p) => s + p.stock);
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(22),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              SizedBox(
+                width: 260,
+                child: TextField(
+                  decoration: const InputDecoration(
+                    hintText: 'Tìm sản phẩm...',
+                    prefixIcon: Icon(Icons.search, size: 20),
+                    isDense: true,
+                    contentPadding: EdgeInsets.symmetric(vertical: 10),
+                  ),
+                  onChanged: (v) => setState(() => _search = v),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                decoration: BoxDecoration(
+                  border: Border.all(color: AppColors.border),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: _filterZone,
+                    style: const TextStyle(fontSize: 13, color: AppColors.textPrimary),
+                    items: _zoneList.map((z) => DropdownMenuItem(value: z, child: Text(z))).toList(),
+                    onChanged: (v) => setState(() => _filterZone = v!),
+                  ),
+                ),
+              ),
+              PopupMenuButton<String>(
+                icon: const Icon(Icons.sort, size: 22),
+                onSelected: (v) => setState(() => _sortBy = v),
+                itemBuilder: (_) => [
+                  PopupMenuItem(value: 'name', child: Text('Tên A-Z', style: TextStyle(fontWeight: _sortBy == 'name' ? FontWeight.bold : FontWeight.normal))),
+                  PopupMenuItem(value: 'stock', child: Text('Tồn kho tăng dần', style: TextStyle(fontWeight: _sortBy == 'stock' ? FontWeight.bold : FontWeight.normal))),
+                  PopupMenuItem(value: 'zone', child: Text('Theo khu vực', style: TextStyle(fontWeight: _sortBy == 'zone' ? FontWeight.bold : FontWeight.normal))),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Text(
+            '${filtered.length} sản phẩm · Tổng: $total sản phẩm',
+            style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
+          ),
+          const SizedBox(height: 10),
+          WebTable(
+            minWidth: 900,
+            headers: const ['Sản phẩm', 'Khu vực', 'Đơn vị', 'Tồn kho', 'Trạng thái'],
+            rows: [
+              for (final p in filtered)
+                [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(p.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+                      if (p.sku.isNotEmpty)
+                        Text(p.sku, style: const TextStyle(fontSize: 11, color: AppColors.textMuted)),
+                    ],
+                  ),
+                  _ZoneChip(code: p.zone, color: _zoneColor(p.zone)),
+                  Text(p.unit, style: const TextStyle(color: AppColors.textSecondary)),
+                  Text(
+                    formatStockDetail(p.stock, p.unitPerCase, p.unit),
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                      color: p.isLowStock ? AppColors.red : AppColors.green,
+                    ),
+                  ),
+                  _StatusChip(low: p.isLowStock, out: p.isOutOfStock),
+                ],
+            ],
+            cellAligns: const [null, null, null, TextAlign.right, null],
+          ),
+        ],
+      ),
+    );
+  }
+
   Color _zoneColor(String code) {
     if (code.startsWith('A')) return AppColors.primary;
     if (code.startsWith('B')) return AppColors.green;
     if (code.startsWith('C')) return AppColors.orange;
     return Colors.grey;
+  }
+}
+
+class _ZoneChip extends StatelessWidget {
+  final String code;
+  final Color color;
+  const _ZoneChip({required this.code, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(99),
+      ),
+      child: Text(
+        code,
+        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: color),
+      ),
+    );
+  }
+}
+
+class _StatusChip extends StatelessWidget {
+  final bool low;
+  final bool out;
+  const _StatusChip({required this.low, required this.out});
+
+  @override
+  Widget build(BuildContext context) {
+    final Color color;
+    final String label;
+    if (out) {
+      color = AppColors.red;
+      label = 'Hết hàng';
+    } else if (low) {
+      color = AppColors.orange;
+      label = 'Tồn thấp';
+    } else {
+      color = AppColors.green;
+      label = 'Còn hàng';
+    }
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(99),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: color),
+      ),
+    );
   }
 }

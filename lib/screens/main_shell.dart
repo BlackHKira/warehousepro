@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -22,6 +23,7 @@ import 'admin_zones_screen.dart';
 import 'analyst_dashboard_screen.dart';
 import 'transaction_history_screen.dart';
 import 'report_export_screen.dart';
+import 'web_shell.dart';
 
 class MainShell extends ConsumerStatefulWidget {
   final String initialRole;
@@ -109,6 +111,22 @@ class _MainShellState extends ConsumerState<MainShell> {
     final selectedIndex = ref.watch(selectedTabProvider);
     final safeIndex = selectedIndex < tabs.length ? selectedIndex : 0;
     final warehouse = ref.watch(warehouseProvider);
+
+    if (kIsWeb && (role == AppRole.accountant || role == AppRole.admin)) {
+      final webTabs =
+          role == AppRole.accountant ? _analystWebTabs : _adminWebTabs;
+      return WebShell(
+        tabs: webTabs,
+        selectedIndex: safeIndex,
+        onTabChanged: (i) {
+          ref.read(selectedTabProvider.notifier).state = i;
+          LocalStorageService().saveTabIndex(i);
+        },
+        roleLabel: role == AppRole.accountant ? 'KẾ TOÁN' : 'QUẢN LÝ',
+        roleName: role == AppRole.accountant ? 'Kế toán' : 'Admin',
+        rolePath: role == AppRole.accountant ? 'accountant' : 'admin',
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -402,6 +420,84 @@ const _analystTabs = [
     Icons.file_download_outlined,
     Icons.file_download,
     'Xuất báo cáo',
+  ),
+];
+
+const _analystWebTabs = [
+  WebTab(
+    screen: AnalystDashboardScreen(embedded: true),
+    icon: Icons.dashboard_outlined,
+    label: 'Tổng quan',
+    path: '',
+    title: 'Tổng quan tài chính',
+    description: 'Tổng giá trị tồn kho, số phiếu nhập/xuất trong tháng, cảnh báo sắp hết.',
+  ),
+  WebTab(
+    screen: AdminInventoryScreen(embedded: true),
+    icon: Icons.inventory_2_outlined,
+    label: 'Tồn kho',
+    path: 'inventory',
+    title: 'Tồn kho — Chế độ kế toán',
+    description: 'Xem tồn kho theo sản phẩm và khu vực, chỉ đọc không chỉnh sửa.',
+  ),
+  WebTab(
+    screen: AdminReportsScreen(embedded: true),
+    icon: Icons.bar_chart_outlined,
+    label: 'Báo cáo',
+    path: 'reports',
+    title: 'Báo cáo xuất/nhập',
+    description: 'Thống kê nhập/xuất theo tháng, giá trị theo khu vực.',
+  ),
+  WebTab(
+    screen: TransactionHistoryScreen(embedded: true),
+    icon: Icons.history_outlined,
+    label: 'Lịch sử',
+    path: 'history',
+    title: 'Lịch sử giao dịch',
+    description: 'Toàn bộ phiếu nhập/xuất, lọc theo khoảng ngày và loại phiếu.',
+  ),
+  WebTab(
+    screen: ReportExportScreen(embedded: true),
+    icon: Icons.file_download_outlined,
+    label: 'Xuất báo cáo',
+    path: 'export',
+    title: 'Xuất báo cáo Excel',
+    description: 'Chọn loại báo cáo và khoảng thời gian để xuất file .xlsx.',
+  ),
+];
+
+const _adminWebTabs = [
+  WebTab(
+    screen: AdminInventoryScreen(embedded: true),
+    icon: Icons.inventory_2_outlined,
+    label: 'Tồn kho',
+    path: 'inventory',
+    title: 'Tồn kho',
+    description: 'Quản lý tồn kho theo sản phẩm và khu vực.',
+  ),
+  WebTab(
+    screen: AdminReportsScreen(embedded: true),
+    icon: Icons.bar_chart_outlined,
+    label: 'Báo cáo',
+    path: 'reports',
+    title: 'Báo cáo xuất/nhập',
+    description: 'Thống kê nhập/xuất và tồn kho theo khu vực.',
+  ),
+  WebTab(
+    screen: AdminStaffScreen(embedded: true),
+    icon: Icons.badge_outlined,
+    label: 'Nhân sự',
+    path: 'staff',
+    title: 'Quản lý nhân sự',
+    description: 'Quản lý tài khoản và phân quyền nhân sự.',
+  ),
+  WebTab(
+    screen: AdminZonesScreen(embedded: true),
+    icon: Icons.map_outlined,
+    label: 'Khu vực',
+    path: 'zones',
+    title: 'Quản lý khu vực',
+    description: 'Quản lý các khu vực trong kho.',
   ),
 ];
 
