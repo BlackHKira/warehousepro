@@ -7,6 +7,7 @@ import '../services/local_storage_service.dart';
 import '../theme/app_theme.dart';
 import 'login_screen.dart';
 import 'profile_screen.dart';
+import 'migration_screen.dart';
 
 class WebTab {
   final Widget screen;
@@ -144,6 +145,7 @@ class _WebShellState extends ConsumerState<WebShell> {
               ),
           const Spacer(),
           _syncTile(),
+          if (widget.rolePath == 'admin') _migrationButton(),
           const Divider(height: 12),
           _userTile(),
           const SizedBox(height: 8),
@@ -232,6 +234,28 @@ class _WebShellState extends ConsumerState<WebShell> {
       icon: const Icon(Icons.cloud_done_outlined, size: 18),
       text: 'Đã đồng bộ',
       color: AppColors.green,
+    );
+  }
+
+  Widget _migrationButton() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+      child: OutlinedButton.icon(
+        onPressed: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const MigrationScreen()),
+        ),
+        icon: const Icon(Icons.sync_alt, size: 18),
+        label: const Text('Migration stockByZone'),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: AppColors.primary,
+          side: const BorderSide(color: AppColors.border),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(9),
+          ),
+          padding: const EdgeInsets.symmetric(vertical: 10),
+        ),
+      ),
     );
   }
 

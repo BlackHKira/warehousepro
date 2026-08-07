@@ -23,6 +23,7 @@ import 'analyst_dashboard_screen.dart';
 import 'transaction_history_screen.dart';
 import 'report_export_screen.dart';
 import 'profile_screen.dart';
+import 'migration_screen.dart';
 import 'web_shell.dart';
 
 class MainShell extends ConsumerStatefulWidget {
@@ -215,6 +216,17 @@ class _MainShellState extends ConsumerState<MainShell> {
               );
             },
           ),
+          if (role == AppRole.admin)
+            IconButton(
+              icon: const Icon(Icons.sync_alt),
+              tooltip: 'Migration stockByZone',
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const MigrationScreen()),
+                );
+              },
+            ),
         ],
       ),
       body: IndexedStack(
