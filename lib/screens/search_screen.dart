@@ -213,7 +213,6 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 selectedColor: AppColors.primary,
                 backgroundColor: const Color(0xFFE8ECF4),
               ),
-              const SizedBox(width: 8),
               ChoiceChip(
                 label: Text('Barcode', style: TextStyle(fontSize: 13, color: _showBarcodeSearch ? Colors.white : AppColors.textPrimary)),
                 selected: _showBarcodeSearch,
@@ -223,14 +222,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               ),
               const Spacer(),
               Text('${filtered.length} kết quả', style: const TextStyle(fontSize: 12, color: AppColors.textMuted)),
-            ],
-          ),
-        ),
-        const SizedBox(height: 6),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Row(
-            children: [
+              const Spacer(),
               ActionChip(
                 avatar: Icon(Icons.location_on, size: 18, color: _selectedZone.isNotEmpty ? Colors.white : AppColors.primary),
                 label: Text(
@@ -242,7 +234,6 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 side: BorderSide.none,
                 padding: const EdgeInsets.symmetric(horizontal: 4),
               ),
-              const SizedBox(width: 8),
               ActionChip(
                 avatar: Icon(Icons.category_outlined, size: 18, color: _selectedCategory.isNotEmpty ? Colors.white : AppColors.primary),
                 label: Text(

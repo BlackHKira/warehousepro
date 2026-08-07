@@ -444,7 +444,7 @@ class _ProductPickerSheetState extends State<_ProductPickerSheet> {
                   final p = _filtered[i];
                   return ListTile(
                     title: Text(p.name),
-                    subtitle: Text('${p.barcode} • ${p.zone} • Tồn: ${formatStock(p.stock, p.unitPerCase, p.unit)}'),
+                    subtitle: Text('${p.barcode} • Tồn: ${formatStock(p.stock, p.unitPerCase, p.unit)}'),
                     onTap: () => Navigator.pop(context, p),
                   );
                 },

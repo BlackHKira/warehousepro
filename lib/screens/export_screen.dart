@@ -134,7 +134,7 @@ class _CreateExportTabState extends ConsumerState<_CreateExportTab> {
     );
   }
 
-  void _showManualDialog(List<Zone> zones) {
+  void _showManualDialog(List<Zone> zones, {VoidCallback? onZoneChanged}) {
     final nameCtrl = TextEditingController();
     final barcodeCtrl = TextEditingController();
     final qtyCtrl = TextEditingController(text: '1');
@@ -220,8 +220,18 @@ class _CreateExportTabState extends ConsumerState<_CreateExportTab> {
                         ),
                       )
                       .toList(),
-                  onChanged: (v) =>
-                      setDialogState(() => selectedZone = v ?? fallbackZone),
+                  onChanged: (v) {
+                    final newZone = v ?? fallbackZone;
+                    if (newZone != selectedZone) {
+                      setDialogState(() {
+                        selectedZone = newZone;
+                        nameCtrl.clear();
+                        barcodeCtrl.clear();
+                        qtyCtrl.text = '1';
+                      });
+                      onZoneChanged?.call();
+                    }
+                  },
                 ),
               ],
             ),
@@ -385,7 +395,7 @@ class _CreateExportTabState extends ConsumerState<_CreateExportTab> {
             const SizedBox(width: 12),
             Expanded(
               child: FilledButton.tonalIcon(
-                onPressed: () => _showManualDialog(zones),
+                onPressed: () => _showManualDialog(zones, onZoneChanged: () => setState(() => _items.clear())),
                 icon: const Icon(Icons.edit),
                 label: const Text('Nhập tay'),
                 style: FilledButton.styleFrom(
@@ -644,7 +654,7 @@ class _ProductPickerSheetState extends State<_ProductPickerSheet> {
                   return ListTile(
                     title: Text(p.name),
                     subtitle: Text(
-                      '${p.barcode} • ${p.zone} • Tồn: ${formatStock(p.getStockInZone(widget.selectedZone), p.unitPerCase, p.unit)}',
+                      '${p.barcode} • ${widget.selectedZone} • Tồn: ${formatStock(p.getStockInZone(widget.selectedZone), p.unitPerCase, p.unit)}',
                     ),
                     onTap: () => Navigator.pop(context, p),
                   );
