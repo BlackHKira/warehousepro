@@ -5,6 +5,7 @@ import 'package:firebase_core/firebase_core.dart';
 import '../providers/users_provider.dart';
 import '../providers/user_profile_provider.dart';
 import '../theme/app_theme.dart';
+import '../widgets/web_table.dart';
 
 class AdminStaffScreen extends ConsumerWidget {
   final bool embedded;
@@ -40,6 +41,7 @@ class _StaffBody extends StatefulWidget {
 class _StaffBodyState extends State<_StaffBody> {
   String _filterRole = 'Tất cả';
   bool _showInactive = false;
+  String _search = '';
 
   FirebaseFirestore get _db => FirebaseFirestore.instanceFor(
     app: Firebase.app(),
@@ -53,6 +55,14 @@ class _StaffBodyState extends State<_StaffBody> {
     }
     if (_filterRole != 'Tất cả') {
       list = list.where((u) => u['role'] == _filterRole).toList();
+    }
+    final q = _search.trim().toLowerCase();
+    if (q.isNotEmpty) {
+      list = list.where((u) {
+        final name = (u['name'] as String? ?? u['fullName'] as String? ?? '').toLowerCase();
+        final email = (u['email'] as String? ?? '').toLowerCase();
+        return name.contains(q) || email.contains(q);
+      }).toList();
     }
     return list;
   }
@@ -121,6 +131,16 @@ class _StaffBodyState extends State<_StaffBody> {
 
   @override
   Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final filtered = _filtered;
+        if (constraints.maxWidth > 800) return _web(filtered);
+        return _mobile(filtered);
+      },
+    );
+  }
+
+  Widget _mobile(List<Map<String, dynamic>> filtered) {
     if (widget.users.isEmpty) {
       return Center(child: Text('Chưa có nhân sự nào', style: TextStyle(color: AppColors.textMuted)));
     }
@@ -129,7 +149,6 @@ class _StaffBodyState extends State<_StaffBody> {
         .map((u) => u['role'] as String? ?? '')
         .where((r) => r.isNotEmpty)
         .toSet().toList()..sort();
-    final filtered = _filtered;
 
     return Column(
       children: [
@@ -244,6 +263,112 @@ class _StaffBodyState extends State<_StaffBody> {
     );
   }
 
+  Widget _web(List<Map<String, dynamic>> filtered) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(22),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              SizedBox(
+                width: 260,
+                child: TextField(
+                  decoration: const InputDecoration(
+                    hintText: 'Tìm tên hoặc email...',
+                    prefixIcon: Icon(Icons.search, size: 20),
+                    isDense: true,
+                    contentPadding: EdgeInsets.symmetric(vertical: 10),
+                  ),
+                  onChanged: (v) => setState(() => _search = v),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                decoration: BoxDecoration(
+                  border: Border.all(color: AppColors.border),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: _filterRole,
+                    style: const TextStyle(fontSize: 13, color: AppColors.textPrimary),
+                    items: [
+                      'Tất cả',
+                      ...widget.users
+                          .map((u) => u['role'] as String? ?? '')
+                          .where((r) => r.isNotEmpty)
+                          .toSet().toList()..sort(),
+                    ].map((r) => DropdownMenuItem(value: r, child: Text(r))).toList(),
+                    onChanged: (v) => setState(() => _filterRole = v!),
+                  ),
+                ),
+              ),
+              FilterChip(
+                label: Text('Đã nghỉ', style: TextStyle(fontSize: 12, color: _showInactive ? Colors.white : AppColors.textPrimary)),
+                selected: _showInactive,
+                onSelected: (_) => setState(() => _showInactive = !_showInactive),
+                selectedColor: AppColors.red,
+                backgroundColor: const Color(0xFFE8ECF4),
+                visualDensity: VisualDensity.compact,
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Text(
+            '${filtered.length} nhân sự',
+            style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
+          ),
+          const SizedBox(height: 10),
+          WebTable(
+            minWidth: 900,
+            headers: const ['Họ tên', 'Email', 'Vai trò', 'Trạng thái', 'Thao tác'],
+            rows: [
+              for (final u in filtered)
+                [
+                  Text(
+                    u['name'] as String? ?? u['fullName'] as String? ?? 'N/A',
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  Text(u['email'] as String? ?? '', style: const TextStyle(color: AppColors.textSecondary)),
+                  _RoleBadge(u['role'] as String? ?? ''),
+                  _StaffStatusChip(active: u['isActive'] as bool? ?? true),
+                  widget.isReadOnly
+                      ? Container(
+                          width: 8, height: 8,
+                          decoration: BoxDecoration(color: (u['isActive'] as bool? ?? true) ? AppColors.green : AppColors.textMuted, shape: BoxShape.circle),
+                        )
+                      : PopupMenuButton<String>(
+                          icon: const Icon(Icons.more_vert, size: 20),
+                          onSelected: (v) async {
+                            if (v == 'edit') await _editUser(u);
+                            if (v == 'toggle') await _toggleActive(u);
+                          },
+                          itemBuilder: (_) => [
+                            const PopupMenuItem(value: 'edit', child: Row(children: [Icon(Icons.edit, size: 18), SizedBox(width: 8), Text('Sửa')])),
+                            PopupMenuItem(
+                              value: 'toggle',
+                              child: Row(
+                                children: [
+                                  Icon((u['isActive'] as bool? ?? true) ? Icons.block : Icons.check_circle, size: 18, color: (u['isActive'] as bool? ?? true) ? AppColors.red : AppColors.green),
+                                  const SizedBox(width: 8),
+                                  Text((u['isActive'] as bool? ?? true) ? 'Vô hiệu hóa' : 'Kích hoạt'),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   Color _chipColor(String role) {
     switch (role) {
       case 'Thủ kho': return AppColors.primary;
@@ -271,6 +396,25 @@ class _RoleBadge extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(color: c.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
       child: Text(role, style: TextStyle(color: c, fontSize: 10, fontWeight: FontWeight.w600)),
+    );
+  }
+}
+
+class _StaffStatusChip extends StatelessWidget {
+  final bool active;
+  const _StaffStatusChip({required this.active});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = active ? AppColors.green : AppColors.red;
+    final label = active ? 'Hoạt động' : 'Đã nghỉ';
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(99),
+      ),
+      child: Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: color)),
     );
   }
 }

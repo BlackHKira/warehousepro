@@ -6,6 +6,7 @@ import '../services/auth_service.dart';
 import '../services/local_storage_service.dart';
 import '../theme/app_theme.dart';
 import 'login_screen.dart';
+import 'profile_screen.dart';
 
 class WebTab {
   final Widget screen;
@@ -62,9 +63,10 @@ class _WebShellState extends ConsumerState<WebShell> {
         ? widget.selectedIndex
         : 0;
     final active = widget.tabs[safeIndex];
+    final scheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: scheme.surfaceContainerLowest,
       body: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -89,12 +91,13 @@ class _WebShellState extends ConsumerState<WebShell> {
   }
 
   Widget _sidebar(int safeIndex) {
+    final scheme = Theme.of(context).colorScheme;
     return Container(
       width: 200,
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
-      decoration: const BoxDecoration(
-        color: Color(0xFFFCFDFF),
-        border: Border(right: BorderSide(color: AppColors.border)),
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        border: Border(right: BorderSide(color: scheme.outlineVariant)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -102,14 +105,18 @@ class _WebShellState extends ConsumerState<WebShell> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 9),
             child: Row(
-              children: const [
-                Icon(Icons.warehouse_outlined, size: 20, color: AppColors.primary),
-                SizedBox(width: 6),
+              children: [
+                const Icon(Icons.warehouse_outlined, size: 20, color: AppColors.primary),
+                const SizedBox(width: 6),
                 Text(
                   'Warehouse',
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    color: scheme.onSurface,
+                  ),
                 ),
-                Text(
+                const Text(
                   'Pro',
                   style: TextStyle(
                     fontSize: 15,
@@ -121,13 +128,13 @@ class _WebShellState extends ConsumerState<WebShell> {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(9, 18, 9, 6),
+            padding: const EdgeInsets.fromLTRB(9, 12, 9, 6),
             child: Text(
               widget.roleLabel,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 10.5,
                 fontWeight: FontWeight.w800,
-                color: AppColors.textMuted,
+                color: scheme.onSurfaceVariant,
                 letterSpacing: 0.6,
               ),
             ),
@@ -137,14 +144,14 @@ class _WebShellState extends ConsumerState<WebShell> {
               ),
           const Spacer(),
           _syncTile(),
-          const Divider(height: 20),
+          const Divider(height: 12),
           _userTile(),
           const SizedBox(height: 8),
           OutlinedButton.icon(
             onPressed: _logout,
             style: OutlinedButton.styleFrom(
               foregroundColor: AppColors.red,
-              side: const BorderSide(color: AppColors.border),
+              side: BorderSide(color: scheme.outlineVariant),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(9),
               ),
@@ -161,8 +168,11 @@ class _WebShellState extends ConsumerState<WebShell> {
   Widget _navButton(int index, int selected) {
     final t = widget.tabs[index];
     final isActive = index == selected;
+    final scheme = Theme.of(context).colorScheme;
     return Material(
-      color: isActive ? AppColors.primaryLight : Colors.transparent,
+      color: isActive
+          ? AppColors.primary.withValues(alpha: 0.12)
+          : Colors.transparent,
       borderRadius: BorderRadius.circular(9),
       child: InkWell(
         borderRadius: BorderRadius.circular(9),
@@ -174,14 +184,16 @@ class _WebShellState extends ConsumerState<WebShell> {
               Icon(
                 t.icon,
                 size: 20,
-                color: isActive ? AppColors.primary : AppColors.textSecondary,
+                color: isActive ? AppColors.primary : scheme.onSurfaceVariant,
               ),
               const SizedBox(width: 9),
               Text(
                 t.label,
                 style: TextStyle(
                   fontSize: 13.5,
-                  color: isActive ? AppColors.primary : AppColors.textSecondary,
+                  color: isActive
+                      ? AppColors.primary
+                      : scheme.onSurfaceVariant,
                   fontWeight: isActive ? FontWeight.w700 : FontWeight.w400,
                 ),
               ),
@@ -251,59 +263,83 @@ class _WebShellState extends ConsumerState<WebShell> {
     final name = profile?.name ?? 'Người dùng';
     final email = profile?.email ?? '';
     final role = profile?.rawRole ?? widget.roleName;
-    return Row(
-      children: [
-        Container(
-          width: 34,
-          height: 34,
-          decoration: BoxDecoration(
-            color: AppColors.primaryLight,
-            borderRadius: BorderRadius.circular(9),
-          ),
-          child: Center(
-            child: Text(
-              name.isNotEmpty ? name[0].toUpperCase() : 'U',
-              style: const TextStyle(
-                fontWeight: FontWeight.w800,
-                color: AppColors.primary,
-                fontSize: 14,
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 9),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    final scheme = Theme.of(context).colorScheme;
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(9),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(9),
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const ProfileScreen()),
+          );
+        },
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+          child: Row(
             children: [
-              Text(
-                name,
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  overflow: TextOverflow.ellipsis,
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(9),
+                ),
+                child: Center(
+                  child: Text(
+                    name.isNotEmpty ? name[0].toUpperCase() : 'U',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.primary,
+                      fontSize: 14,
+                    ),
+                  ),
                 ),
               ),
-              Text(
-                email.isEmpty ? role : email,
-                style: const TextStyle(
-                  fontSize: 11,
-                  color: AppColors.textMuted,
-                  overflow: TextOverflow.ellipsis,
+              const SizedBox(width: 9),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      name,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: scheme.onSurface,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    Text(
+                      email.isEmpty ? role : email,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: scheme.onSurfaceVariant,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
                 ),
+              ),
+              Icon(
+                Icons.chevron_right,
+                size: 18,
+                color: scheme.onSurfaceVariant,
               ),
             ],
           ),
         ),
-      ],
+      ),
     );
   }
 
   Widget _workHeader(WebTab active) {
+    final scheme = Theme.of(context).colorScheme;
     return Container(
-      padding: const EdgeInsets.fromLTRB(22, 16, 22, 14),
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: AppColors.border)),
+      padding: const EdgeInsets.fromLTRB(22, 12, 22, 10),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: scheme.outlineVariant)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -312,34 +348,45 @@ class _WebShellState extends ConsumerState<WebShell> {
             children: [
               Text(
                 widget.roleName,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 12.5,
-                  color: AppColors.textMuted,
+                  color: scheme.onSurfaceVariant,
                   fontWeight: FontWeight.w700,
                 ),
               ),
               const SizedBox(width: 6),
-              const Icon(Icons.chevron_right, size: 14, color: AppColors.textMuted),
+              Icon(
+                Icons.chevron_right,
+                size: 14,
+                color: scheme.onSurfaceVariant,
+              ),
               const SizedBox(width: 6),
               Text(
                 active.label,
-                style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
+                style: TextStyle(
+                  fontSize: 12.5,
+                  color: scheme.onSurfaceVariant,
+                ),
               ),
             ],
           ),
           const SizedBox(height: 8),
           Text(
             active.title,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.w700,
               letterSpacing: -0.4,
+              color: scheme.onSurface,
             ),
           ),
           const SizedBox(height: 4),
           Text(
             active.description,
-            style: const TextStyle(fontSize: 13.5, color: AppColors.textMuted),
+            style: TextStyle(
+              fontSize: 13.5,
+              color: scheme.onSurfaceVariant,
+            ),
           ),
         ],
       ),

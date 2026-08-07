@@ -20,6 +20,16 @@ class LocalStorageServiceStub implements LocalStorageService {
   int getTabIndex() => int.tryParse(_store['tab_index'] ?? '') ?? 0;
 
   @override
+  void saveDarkMode(bool isDark) {
+    _store['dark_mode'] = isDark.toString();
+  }
+
+  @override
+  bool getDarkMode() {
+    return _store['dark_mode'] == 'true';
+  }
+
+  @override
   void clearAll() => _store.clear();
 }
 

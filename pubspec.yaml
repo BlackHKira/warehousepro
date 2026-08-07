@@ -66,6 +66,9 @@ dependencies:
   # Charts
   fl_chart: ^1.2.0
 
+  # Device info
+  device_info_plus: ^10.0.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
