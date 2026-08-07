@@ -50,68 +50,6 @@ class ProductService {
     return Product.fromMap(doc.id, doc.data());
   }
 
-  Future<List<Product>> searchByName(String query) async {
-    if (query.isEmpty) return getProducts();
-    final q = query.toLowerCase();
-    try {
-      final snapshot = await _collection.get();
-      final list = snapshot.docs
-          .map((doc) => Product.fromMap(doc.id, doc.data()))
-          .where((p) =>
-              p.name.toLowerCase().contains(q) || p.barcode.contains(query))
-          .toList();
-      if (list.isNotEmpty) return list;
-    } catch (_) {}
-    return sampleProducts
-        .where((p) =>
-            p.name.toLowerCase().contains(q) || p.barcode.contains(query))
-        .toList();
-  }
-
-  Future<List<Product>> getByZone(String zone) async {
-    try {
-      final snapshot = await _collection.where('zone', isEqualTo: zone).orderBy('name').get();
-      final list = snapshot.docs
-          .map((doc) => Product.fromMap(doc.id, doc.data()))
-          .toList();
-      if (list.isNotEmpty) return list;
-    } catch (_) {}
-    return sampleProducts.where((p) => p.zone == zone).toList();
-  }
-
-  Future<void> addProduct(Product product) async {
-    await _collection.add(product.toMap());
-  }
-
-  Future<void> updateProduct(String id, Map<String, dynamic> data) async {
-    data['updatedAt'] = DateTime.now().toIso8601String();
-    await _collection.doc(id).update(data);
-  }
-
-  Future<void> updateStock(String id, int newStock) async {
-    await _collection.doc(id).update({
-      'stock': newStock,
-      'serverStock': newStock,
-      'updatedAt': DateTime.now().toIso8601String(),
-    });
-  }
-
-  Future<void> deleteProduct(String id) async {
-    await _collection.doc(id).delete();
-  }
-
-  Future<List<Product>> getLowStockProducts() async {
-    try {
-      final snapshot = await _collection.get();
-      final list = snapshot.docs
-          .map((doc) => Product.fromMap(doc.id, doc.data()))
-          .where((p) => p.isLowStock)
-          .toList();
-      if (list.isNotEmpty) return list;
-    } catch (_) {}
-    return sampleProducts.where((p) => p.isLowStock).toList();
-  }
-
   Future<String?> updateStockByBarcode(String barcode, int delta, {String? zone}) async {
     return await _db.runTransaction<String?>((tx) async {
       final snapshot = await _collection

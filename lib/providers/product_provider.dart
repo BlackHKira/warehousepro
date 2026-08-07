@@ -20,17 +20,3 @@ final productByBarcodeProvider =
     FutureProvider.family<Product?, String>((ref, barcode) {
   return _productService.getProductByBarcode(barcode);
 });
-
-final searchProductsProvider =
-    FutureProvider.family<List<Product>, String>((ref, query) {
-  return _productService.searchByName(query);
-});
-
-final zoneProductsProvider =
-    FutureProvider.family<List<Product>, String>((ref, zone) {
-  return _productService.getByZone(zone);
-});
-
-final lowStockProductsProvider = FutureProvider<List<Product>>((ref) {
-  return _productService.getLowStockProducts();
-});
