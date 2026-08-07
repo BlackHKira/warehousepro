@@ -72,10 +72,41 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
               final product = await ref.read(productByBarcodeProvider(barcode).future);
               if (!mounted) return;
               if (product != null) {
-                final qty = 1;
-                _addItem(product.name, product.barcode, qty, product.zone, product.unitPerCase);
+                String pickedZone = zones.isNotEmpty ? zones.first.code : product.zone;
+                await showDialog(
+                  context: context,
+                  builder: (ctx) => StatefulBuilder(
+                    builder: (ctx, setDialogState) => AlertDialog(
+                      title: const Text('Chọn khu vực'),
+                      content: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(product.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+                          const SizedBox(height: 12),
+                          DropdownButtonFormField<String>(
+                            initialValue: pickedZone,
+                            decoration: const InputDecoration(labelText: 'Khu vực nhập', border: OutlineInputBorder()),
+                            items: zones.map((z) => DropdownMenuItem(value: z.code, child: Text('${z.code} — ${z.label}', style: const TextStyle(fontSize: 14)))).toList(),
+                            onChanged: (v) => setDialogState(() => pickedZone = v ?? pickedZone),
+                          ),
+                        ],
+                      ),
+                      actions: [
+                        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Huỷ')),
+                        FilledButton(
+                          onPressed: () {
+                            _addItem(product.name, product.barcode, 1, pickedZone, product.unitPerCase);
+                            Navigator.pop(ctx);
+                          },
+                          child: const Text('Thêm'),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+                if (!mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Đã quét: ${product.name} — $qty thùng'), behavior: SnackBarBehavior.floating, duration: const Duration(seconds: 1)),
+                  SnackBar(content: Text('Đã quét: ${product.name}'), behavior: SnackBarBehavior.floating, duration: const Duration(seconds: 1)),
                 );
               } else {
                 ScaffoldMessenger.of(context).showSnackBar(
