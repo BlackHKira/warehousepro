@@ -20,5 +20,4 @@ abstract class DatabaseHelper {
   Future<void> updateTransactionStatus(int localId, String newStatus);
   Future<Map<String, dynamic>?> getByFirestoreId(String firestoreId);
   Future<bool> isDuplicate(String type, int items, String zone, String createdAt);
-  Future<void> close();
 }

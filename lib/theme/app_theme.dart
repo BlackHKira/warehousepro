@@ -3,16 +3,13 @@ import 'package:flutter/material.dart';
 class AppColors {
   // Primary
   static const primary = Color(0xFF2563EB);
-  static const primaryDark = Color(0xFF1D4ED8);
   static const primaryLight = Color(0xFFDBEAFE);
 
   // Success
-  static const success = Color(0xFF22C55E);
   static const successLight = Color(0xFFDCFCE7);
   static const successDark = Color(0xFF15803D);
 
   // Warning
-  static const warning = Color(0xFFF59E0B);
   static const warningLight = Color(0xFFFEF3C7);
   static const warningDark = Color(0xFFB45309);
 
@@ -20,10 +17,6 @@ class AppColors {
   static const error = Color(0xFFEF4444);
   static const errorLight = Color(0xFFFEE2E2);
   static const errorDark = Color(0xFFB91C1C);
-
-  // Purple
-  static const purple = Color(0xFFA855F7);
-  static const purpleLight = Color(0xFFF3E8FF);
 
   // Neutrals
   static const background = Color(0xFFF8FAFC);
