@@ -131,13 +131,4 @@ class _NativeDatabaseHelper extends DatabaseHelper {
     }
     return entry;
   }
-
-  @override
-  Future<void> close() async {
-    final db = _db;
-    if (db != null) {
-      await db.close();
-      _db = null;
-    }
-  }
 }

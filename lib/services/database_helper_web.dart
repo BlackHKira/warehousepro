@@ -85,7 +85,4 @@ class _WebDatabaseHelper extends DatabaseHelper {
     }
     return entry;
   }
-
-  @override
-  Future<void> close() async {}
 }
