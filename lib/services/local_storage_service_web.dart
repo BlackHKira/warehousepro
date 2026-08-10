@@ -23,6 +23,16 @@ class LocalStorageServiceWeb implements LocalStorageService {
   }
 
   @override
+  void saveDarkMode(bool isDark) {
+    html.window.localStorage['dark_mode'] = isDark.toString();
+  }
+
+  @override
+  bool getDarkMode() {
+    return html.window.localStorage['dark_mode'] == 'true';
+  }
+
+  @override
   void clearAll() {
     html.window.localStorage.remove('user_role');
     html.window.localStorage.remove('tab_index');

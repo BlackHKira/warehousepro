@@ -9,5 +9,7 @@ abstract class LocalStorageService {
   String? getRole();
   void saveTabIndex(int index);
   int getTabIndex();
+  void saveDarkMode(bool isDark);
+  bool getDarkMode();
   void clearAll();
 }

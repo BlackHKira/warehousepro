@@ -7,7 +7,6 @@ import 'package:firebase_core/firebase_core.dart';
 import '../providers/user_profile_provider.dart';
 import '../providers/selected_tab_provider.dart';
 import '../providers/warehouse_provider.dart';
-import '../services/auth_service.dart';
 import '../services/local_storage_service.dart';
 import '../theme/app_theme.dart';
 import 'dashboard_screen.dart';
@@ -15,14 +14,15 @@ import 'import_screen.dart';
 import 'export_screen.dart';
 import 'search_screen.dart';
 import 'delivery_screen.dart';
-import 'login_screen.dart';
 import 'admin_inventory_screen.dart';
+import 'admin_dashboard_screen.dart';
 import 'admin_reports_screen.dart';
 import 'admin_staff_screen.dart';
 import 'admin_zones_screen.dart';
 import 'analyst_dashboard_screen.dart';
 import 'transaction_history_screen.dart';
 import 'report_export_screen.dart';
+import 'profile_screen.dart';
 import 'migration_screen.dart';
 import 'web_shell.dart';
 
@@ -206,95 +206,27 @@ class _MainShellState extends ConsumerState<MainShell> {
                 ),
               ),
             ),
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.person_outline),
-            onSelected: (value) async {
-              switch (value) {
-                case 'info':
-                  final p = ref.read(userProfileProvider);
-                  if (!context.mounted) return;
-                  showDialog(
-                    context: context,
-                    builder: (ctx) => AlertDialog(
-                      title: const Text('Thông tin tài khoản'),
-                      content: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          _infoRow(
-                            Icons.person,
-                            'Họ và tên',
-                            p?.name ?? 'Người dùng',
-                          ),
-                          const SizedBox(height: 8),
-                          _infoRow(Icons.email, 'Gmail', p?.email ?? ''),
-                          const SizedBox(height: 8),
-                          _infoRow(Icons.phone, 'Số điện thoại', p?.phone ?? ''),
-                          const SizedBox(height: 8),
-                          _infoRow(Icons.wc, 'Giới tính', p?.gender ?? ''),
-                          const SizedBox(height: 8),
-                          _infoRow(Icons.badge, 'Vị trí', p?.rawRole ?? ''),
-                        ],
-                      ),
-                      actions: [
-                        FilledButton(
-                          onPressed: () => Navigator.pop(ctx),
-                          child: const Text('Đóng'),
-                        ),
-                      ],
-                    ),
-                  );
-                case 'logout':
-                  LocalStorageService().clearAll();
-                  await AuthService().signOut();
-                  if (!context.mounted) return;
-                  ref.read(userProfileProvider.notifier).state = null;
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(builder: (_) => const LoginScreen()),
-                  );
-                case 'migration':
-                  if (!context.mounted) return;
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const MigrationScreen()),
-                  );
-              }
+          IconButton(
+            icon: const Icon(Icons.settings_outlined),
+            tooltip: 'Cài đặt & tài khoản',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const ProfileScreen()),
+              );
             },
-            itemBuilder: (context) => [
-              const PopupMenuItem<String>(
-                value: 'info',
-                child: Row(
-                  children: [
-                    Icon(Icons.person_outline, size: 20),
-                    SizedBox(width: 10),
-                    Text('Xem thông tin'),
-                  ],
-                ),
-              ),
-              if (role == AppRole.admin)
-                const PopupMenuItem<String>(
-                  value: 'migration',
-                  child: Row(
-                    children: [
-                      Icon(Icons.sync_alt, size: 20),
-                      SizedBox(width: 10),
-                      Text('Migration stockByZone'),
-                    ],
-                  ),
-                ),
-              const PopupMenuDivider(),
-              const PopupMenuItem<String>(
-                value: 'logout',
-                child: Row(
-                  children: [
-                    Icon(Icons.logout, size: 20, color: AppColors.red),
-                    SizedBox(width: 10),
-                    Text('Đăng xuất', style: TextStyle(color: AppColors.red)),
-                  ],
-                ),
-              ),
-            ],
           ),
+          if (role == AppRole.admin)
+            IconButton(
+              icon: const Icon(Icons.sync_alt),
+              tooltip: 'Migration stockByZone',
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const MigrationScreen()),
+                );
+              },
+            ),
         ],
       ),
       body: IndexedStack(
@@ -382,6 +314,12 @@ const _staffTabs = [
 ];
 
 const _adminTabs = [
+  _TabDef(
+    AdminDashboardScreen(embedded: true),
+    Icons.dashboard_outlined,
+    Icons.dashboard,
+    'Tổng quan',
+  ),
   _TabDef(
     AdminInventoryScreen(embedded: true),
     Icons.inventory_2_outlined,
@@ -486,6 +424,14 @@ const _analystWebTabs = [
 
 const _adminWebTabs = [
   WebTab(
+    screen: AdminDashboardScreen(embedded: true),
+    icon: Icons.dashboard_outlined,
+    label: 'Tổng quan',
+    path: '',
+    title: 'Tổng quan kho hàng',
+    description: 'Thống kê toàn kho, biểu đồ nhập/xuất, cảnh báo tồn kho thấp.',
+  ),
+  WebTab(
     screen: AdminInventoryScreen(embedded: true),
     icon: Icons.inventory_2_outlined,
     label: 'Tồn kho',
@@ -534,26 +480,4 @@ AppRole _resolveRole(String rawRole) {
     default:
       return AppRole.staff;
   }
-}
-
-Widget _infoRow(IconData icon, String label, String value) {
-  return Row(
-    children: [
-      Icon(icon, size: 20, color: AppColors.textMuted),
-      const SizedBox(width: 10),
-      Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: TextStyle(fontSize: 11, color: AppColors.textMuted),
-          ),
-          Text(
-            value,
-            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
-          ),
-        ],
-      ),
-    ],
-  );
 }

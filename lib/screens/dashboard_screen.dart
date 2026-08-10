@@ -7,15 +7,12 @@ import 'package:firebase_core/firebase_core.dart';
 import '../providers/warehouse_provider.dart' show warehouseProvider;
 import '../providers/product_provider.dart';
 import '../providers/user_profile_provider.dart';
-import '../services/auth_service.dart';
-import '../services/local_storage_service.dart';
 import '../theme/app_theme.dart';
 import 'import_screen.dart';
 import 'export_screen.dart';
 import 'search_screen.dart';
 import 'bulk_scan_screen.dart';
 import 'activity_history_screen.dart';
-import 'login_screen.dart';
 
 class DashboardScreen extends ConsumerWidget {
   final bool embedded;
@@ -285,20 +282,6 @@ class _DashboardHeader extends ConsumerWidget {
             icon: const Icon(Icons.refresh, color: Color(0xFF3B82F6)),
             tooltip: 'Đồng bộ',
             onPressed: () => ref.read(warehouseProvider.notifier).syncData(),
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout, color: Color(0xFFEF4444)),
-            tooltip: 'Đăng xuất',
-            onPressed: () async {
-              LocalStorageService().clearAll();
-              await AuthService().signOut();
-              if (!context.mounted) return;
-              ref.read(userProfileProvider.notifier).state = null;
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (_) => const LoginScreen()),
-              );
-            },
           ),
         ],
       ),
