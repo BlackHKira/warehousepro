@@ -326,7 +326,7 @@ class _CreateExportTabState extends ConsumerState<_CreateExportTab> {
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  value: _selectedStatus,
+                  initialValue: _selectedStatus,
                   decoration: const InputDecoration(
                     labelText: 'Trạng thái',
                     prefixIcon: Icon(Icons.flag_outlined),

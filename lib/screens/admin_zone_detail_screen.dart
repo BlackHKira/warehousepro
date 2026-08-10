@@ -14,7 +14,7 @@ class AdminZoneDetailScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final productsAsync = ref.watch(productsProvider);
     final products = productsAsync.valueOrNull ?? [];
-    final zoneProducts = products.where((p) => p.zone == zone.code).toList();
+    final zoneProducts = products.where((p) => p.getStockInZone(zone.code) > 0).toList();
 
     return Scaffold(
       appBar: AppBar(title: Text('Khu ${zone.code}')),
@@ -62,7 +62,7 @@ class AdminZoneDetailScreen extends ConsumerWidget {
                   separatorBuilder: (_, _) => const SizedBox(height: 6),
                   itemBuilder: (_, i) {
                     final p = zoneProducts[i];
-                    return _ProductCard(product: p, zoneColor: _zoneColor(zone.code));
+                    return _ProductCard(product: p, zoneCode: zone.code, zoneColor: _zoneColor(zone.code));
                   },
                 ),
               );
@@ -83,8 +83,9 @@ class AdminZoneDetailScreen extends ConsumerWidget {
 
 class _ProductCard extends StatelessWidget {
   final Product product;
+  final String zoneCode;
   final Color zoneColor;
-  const _ProductCard({required this.product, required this.zoneColor});
+  const _ProductCard({required this.product, required this.zoneCode, required this.zoneColor});
 
   @override
   Widget build(BuildContext context) {
@@ -117,7 +118,7 @@ class _ProductCard extends StatelessWidget {
                         const SizedBox(width: 10),
                         const Icon(Icons.location_on, size: 12, color: AppColors.textMuted),
                         const SizedBox(width: 2),
-                        Flexible(child: Text(product.zone, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary), overflow: TextOverflow.ellipsis)),
+                        Flexible(child: Text(zoneCode, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary), overflow: TextOverflow.ellipsis)),
                       ],
                     ),
                   ],
@@ -126,7 +127,7 @@ class _ProductCard extends StatelessWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text(formatStock(product.stock, product.unitPerCase, product.unit), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: product.isLowStock ? AppColors.red : AppColors.green)),
+                  Text(formatStock(product.getStockInZone(zoneCode), product.unitPerCase, product.unit), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: product.isLowStock ? AppColors.red : AppColors.green)),
                 ],
               ),
             ],

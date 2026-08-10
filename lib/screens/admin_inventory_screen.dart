@@ -36,17 +36,30 @@ class _InventoryBodyState extends State<_InventoryBody> {
   String _filterZone = 'Tất cả';
   String _sortBy = 'name';
 
+  int _stock(Product p) {
+    if (_filterZone != 'Tất cả') return p.getStockInZone(_filterZone);
+    return p.stock;
+  }
+
+  String _zoneLabel(Product p) {
+    if (p.stockByZone.isNotEmpty) {
+      final zones = p.stockByZone.keys.where((z) => (p.stockByZone[z] ?? 0) > 0).join(', ');
+      if (zones.isNotEmpty) return zones;
+    }
+    return p.zone;
+  }
+
   List<Product> get _filtered {
     final list = widget.products.where((p) {
       if (_search.isNotEmpty) {
         final q = _search.toLowerCase();
         if (!p.name.toLowerCase().contains(q) && !p.sku.toLowerCase().contains(q)) return false;
       }
-      if (_filterZone != 'Tất cả' && p.zone != _filterZone) return false;
+      if (_filterZone != 'Tất cả' && p.getStockInZone(_filterZone) == 0) return false;
       return true;
     }).toList();
     switch (_sortBy) {
-      case 'stock': list.sort((a, b) => a.stock.compareTo(b.stock));
+      case 'stock': list.sort((a, b) => _stock(a).compareTo(_stock(b)));
       case 'name': list.sort((a, b) => a.name.compareTo(b.name));
       case 'zone': list.sort((a, b) => a.zone.compareTo(b.zone));
     }
@@ -117,7 +130,7 @@ class _InventoryBodyState extends State<_InventoryBody> {
             children: [
               Text('${filtered.length} sản phẩm', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
               const Spacer(),
-              Text('${filtered.fold(0, (s, p) => s + p.stock)} sản phẩm', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+              Text('${filtered.fold(0, (s, p) => s + _stock(p))} sản phẩm', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
             ],
           ),
         ),
@@ -138,12 +151,12 @@ class _InventoryBodyState extends State<_InventoryBody> {
                     child: Center(child: Text(p.zone, style: TextStyle(color: _zoneColor(p.zone), fontSize: 12, fontWeight: FontWeight.bold))),
                   ),
                   title: Text(p.name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-                  subtitle: Text('${p.category} · ${p.zone}', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                  subtitle: Text('${p.category} · ${_zoneLabel(p)}', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
                   trailing: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      Text(formatStock(p.stock, p.unitPerCase, p.unit), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: p.isLowStock ? AppColors.red : AppColors.green)),
+                      Text(formatStock(_stock(p), p.unitPerCase, p.unit), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: p.isLowStock ? AppColors.red : AppColors.green)),
                     ],
                   ),
                 ),
@@ -156,7 +169,7 @@ class _InventoryBodyState extends State<_InventoryBody> {
   }
 
   Widget _web(List<Product> filtered) {
-    final total = filtered.fold(0, (s, p) => s + p.stock);
+    final total = filtered.fold(0, (s, p) => s + _stock(p));
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -225,10 +238,19 @@ class _InventoryBodyState extends State<_InventoryBody> {
                         Text(p.sku, style: const TextStyle(fontSize: 11, color: AppColors.textMuted)),
                     ],
                   ),
-                  _ZoneChip(code: p.zone, color: _zoneColor(p.zone)),
+                  Wrap(
+                    spacing: 4,
+                    runSpacing: 4,
+                    children: [
+                      for (final z in p.stockByZone.entries.where((e) => e.value > 0).map((e) => e.key).toList().isNotEmpty
+                          ? p.stockByZone.entries.where((e) => e.value > 0).map((e) => e.key).toList()
+                          : [p.zone])
+                        _ZoneChip(code: z, color: _zoneColor(z)),
+                    ],
+                  ),
                   Text(p.unit, style: const TextStyle(color: AppColors.textSecondary)),
                   Text(
-                    formatStockDetail(p.stock, p.unitPerCase, p.unit),
+                    formatStockDetail(_stock(p), p.unitPerCase, p.unit),
                     style: TextStyle(
                       fontWeight: FontWeight.w700,
                       fontSize: 13,

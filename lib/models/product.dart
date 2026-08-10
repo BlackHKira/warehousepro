@@ -47,13 +47,6 @@ class Product {
         ? warehouseLocation.split('-').first
         : (map['zone'] as String? ?? '');
     final updatedAtRaw = map['updatedAt'];
-    final rawStockByZone = map['stockByZone'];
-    final parsedStockByZone = <String, int>{};
-    if (rawStockByZone is Map) {
-      rawStockByZone.forEach((k, v) {
-        parsedStockByZone[k.toString()] = (v as num?)?.toInt() ?? 0;
-      });
-    }
 
     return Product(
       id: id,
@@ -71,7 +64,9 @@ class Product {
       exportPrice: (map['exportPrice'] as num?)?.toInt() ?? 0,
       note: map['note'] as String? ?? '',
       imageUrl: map['imageUrl'] as String? ?? '',
-      stockByZone: parsedStockByZone,
+      stockByZone: (map['stockByZone'] as Map<String, dynamic>?)
+              ?.map((k, v) => MapEntry(k, (v as num?)?.toInt() ?? 0)) ??
+          const {},
       createdAt: map['createdAt'] != null
           ? (map['createdAt'] is String
               ? DateTime.tryParse(map['createdAt'])
@@ -113,14 +108,9 @@ class Product {
   bool get isLowStock => stock <= minStock;
   bool get isOutOfStock => stock == 0;
 
-  int get stockInCases => unitPerCase > 0 ? stock ~/ unitPerCase : 0;
-  int get stockRemainder => unitPerCase > 0 ? stock % unitPerCase : stock;
-
   int getStockInZone(String zone) {
-    if (stockByZone.isNotEmpty) {
-      return stockByZone[zone] ?? 0;
-    }
-    if (this.zone == zone) return stock;
+    if (stockByZone.isNotEmpty) return stockByZone[zone] ?? 0;
+    if (zone == this.zone) return stock;
     return 0;
   }
 }
