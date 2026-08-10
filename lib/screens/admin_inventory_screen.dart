@@ -36,17 +36,22 @@ class _InventoryBodyState extends State<_InventoryBody> {
   String _filterZone = 'Tất cả';
   String _sortBy = 'name';
 
+  int _stock(Product p) {
+    if (_filterZone != 'Tất cả') return p.getStockInZone(_filterZone);
+    return p.stock;
+  }
+
   List<Product> get _filtered {
     final list = widget.products.where((p) {
       if (_search.isNotEmpty) {
         final q = _search.toLowerCase();
         if (!p.name.toLowerCase().contains(q) && !p.sku.toLowerCase().contains(q)) return false;
       }
-      if (_filterZone != 'Tất cả' && p.zone != _filterZone) return false;
+      if (_filterZone != 'Tất cả' && p.getStockInZone(_filterZone) == 0) return false;
       return true;
     }).toList();
     switch (_sortBy) {
-      case 'stock': list.sort((a, b) => a.stock.compareTo(b.stock));
+      case 'stock': list.sort((a, b) => _stock(a).compareTo(_stock(b)));
       case 'name': list.sort((a, b) => a.name.compareTo(b.name));
       case 'zone': list.sort((a, b) => a.zone.compareTo(b.zone));
     }
@@ -117,7 +122,7 @@ class _InventoryBodyState extends State<_InventoryBody> {
             children: [
               Text('${filtered.length} sản phẩm', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
               const Spacer(),
-              Text('${filtered.fold(0, (s, p) => s + p.stock)} sản phẩm', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+              Text('${filtered.fold(0, (s, p) => s + _stock(p))} sản phẩm', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
             ],
           ),
         ),
@@ -143,7 +148,7 @@ class _InventoryBodyState extends State<_InventoryBody> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      Text(formatStock(p.stock, p.unitPerCase, p.unit), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: p.isLowStock ? AppColors.red : AppColors.green)),
+                      Text(formatStock(_stock(p), p.unitPerCase, p.unit), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: p.isLowStock ? AppColors.red : AppColors.green)),
                     ],
                   ),
                 ),
@@ -156,7 +161,7 @@ class _InventoryBodyState extends State<_InventoryBody> {
   }
 
   Widget _web(List<Product> filtered) {
-    final total = filtered.fold(0, (s, p) => s + p.stock);
+    final total = filtered.fold(0, (s, p) => s + _stock(p));
     return SingleChildScrollView(
       padding: const EdgeInsets.all(22),
       child: Column(
@@ -228,7 +233,7 @@ class _InventoryBodyState extends State<_InventoryBody> {
                   _ZoneChip(code: p.zone, color: _zoneColor(p.zone)),
                   Text(p.unit, style: const TextStyle(color: AppColors.textSecondary)),
                   Text(
-                    formatStockDetail(p.stock, p.unitPerCase, p.unit),
+                    formatStockDetail(_stock(p), p.unitPerCase, p.unit),
                     style: TextStyle(
                       fontWeight: FontWeight.w700,
                       fontSize: 13,
