@@ -171,7 +171,7 @@ class _InventoryBodyState extends State<_InventoryBody> {
   Widget _web(List<Product> filtered) {
     final total = filtered.fold(0, (s, p) => s + _stock(p));
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(22),
+      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -218,12 +218,12 @@ class _InventoryBodyState extends State<_InventoryBody> {
               ),
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 8),
           Text(
             '${filtered.length} sản phẩm · Tổng: $total sản phẩm',
             style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           WebTable(
             minWidth: 900,
             headers: const ['Sản phẩm', 'Khu vực', 'Đơn vị', 'Tồn kho', 'Trạng thái'],

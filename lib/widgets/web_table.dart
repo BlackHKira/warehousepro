@@ -82,19 +82,23 @@ class WebTable extends StatelessWidget {
               if (!has)
                 TableRow(
                   children: [
-                    TableCell(
-                      child: Padding(
-                        padding: const EdgeInsets.all(24),
-                        child: Text(
-                          'Không có dữ liệu',
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            fontSize: 13,
-                            color: AppColors.textMuted,
+                    for (var i = 0; i < headers.length; i++)
+                      if (i == 0)
+                        TableCell(
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Text(
+                              'Không có dữ liệu',
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                fontSize: 13,
+                                color: AppColors.textMuted,
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
-                    ),
+                        )
+                      else
+                        const TableCell(child: SizedBox.shrink()),
                   ],
                 ),
             ],
@@ -113,7 +117,9 @@ class WebTable extends StatelessWidget {
 
   Widget _cell(Widget child, {required bool isHeader}) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      padding: isHeader
+          ? const EdgeInsets.symmetric(horizontal: 10, vertical: 8)
+          : const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       child: child,
     );
   }

@@ -7,6 +7,7 @@ import 'screens/login_screen.dart';
 import 'services/database_helper.dart';
 import 'services/zone_service.dart';
 import 'seed/seed_firestore.dart';
+import 'providers/theme_provider.dart';
 import 'theme/app_theme.dart';
 
 void main() async {
@@ -32,15 +33,18 @@ void main() async {
   runApp(const ProviderScope(child: WarehouseProApp()));
 }
 
-class WarehouseProApp extends StatelessWidget {
+class WarehouseProApp extends ConsumerWidget {
   const WarehouseProApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final themeMode = ref.watch(themeModeProvider);
     return MaterialApp(
       title: 'WarehousePro',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
+      darkTheme: AppTheme.dark(),
+      themeMode: themeMode,
       home: const LoginScreen(),
     );
   }
