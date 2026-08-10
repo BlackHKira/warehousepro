@@ -264,7 +264,7 @@ class WarehouseNotifier extends StateNotifier<WarehouseState> {
           final map = item as Map<String, dynamic>;
           final barcode = map['barcode'] as String? ?? '';
           final qty = (map['quantity'] as num?)?.toInt() ?? 0;
-          final itemZone = map['zone'] as String?;
+          final itemZone = map['zone'] as String? ?? order['zone'] as String?;
           if (barcode.isEmpty || qty == 0) continue;
           await _productService.updateStockByBarcode(barcode, -qty, zone: itemZone);
         }
@@ -336,7 +336,8 @@ class WarehouseNotifier extends StateNotifier<WarehouseState> {
             final qty = (item['quantity'] as num?)?.toInt() ?? 0;
             if (barcode.isEmpty || qty == 0) continue;
             final delta = type == 'import' ? qty : -qty;
-            await _productService.updateStockByBarcode(barcode, delta, zone: item['zone'] as String?);
+            final itemZone = item['zone'] as String? ?? zone;
+            await _productService.updateStockByBarcode(barcode, delta, zone: itemZone);
           }
         }
 
@@ -418,26 +419,25 @@ class WarehouseNotifier extends StateNotifier<WarehouseState> {
           'status': entry['status'],
           'createdAt': FieldValue.serverTimestamp(),
         });
+
+        final items = entry['products'] as List<dynamic>? ?? [];
+        final isImport = entry['type'] == 'import';
+        for (final item in items) {
+          final barcode = item['barcode'] as String? ?? '';
+          final qty = (item['quantity'] as num?)?.toInt() ?? 0;
+          if (barcode.isEmpty || qty == 0) continue;
+          final itemZone = item['zone'] as String? ?? entry['zone'] as String?;
+          await _productService.updateStockByBarcode(
+            barcode,
+            isImport ? qty : -qty,
+            zone: itemZone,
+          );
+        }
+
         final localId = entry['localId'] ?? entry['id'];
         if (localId is int) {
           await _db.markAsSynced(localId, docRef.id);
         }
-        try {
-          final items = entry['products'] as List<dynamic>? ?? [];
-          final isImport = entry['type'] == 'import';
-          for (final item in items) {
-            final barcode = item['barcode'] as String? ?? '';
-            final qty = (item['quantity'] as num?)?.toInt() ?? 0;
-            if (barcode.isEmpty || qty == 0) continue;
-            await _productService.updateStockByBarcode(
-              barcode,
-              isImport ? qty : -qty,
-              zone: isImport
-                  ? (item['zone'] as String? ?? entry['zone'] as String?)
-                  : null,
-            );
-          }
-        } catch (_) {}
       }
 
       await _pullFromFirestore();
@@ -456,16 +456,8 @@ class WarehouseNotifier extends StateNotifier<WarehouseState> {
   }
 
   Future<void> cleanupOldPendingExports() async {
-    try {
-      final snapshot = await _firestore.transactions
-          .where('type', isEqualTo: 'export')
-          .where('status', isEqualTo: 'pending')
-          .get();
-      for (final doc in snapshot.docs) {
-        await doc.reference.update({'status': 'completed'});
-      }
-      await _pullFromFirestore();
-    } catch (_) {}
+    // Bỏ force-complete: để user xử lý pending exports qua UI
+    // Force-complete mà không adjust stock gây ra data corruption
   }
 }
 

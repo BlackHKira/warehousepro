@@ -50,111 +50,71 @@ class ProductService {
     return Product.fromMap(doc.id, doc.data());
   }
 
-  Future<List<Product>> searchByName(String query) async {
-    if (query.isEmpty) return getProducts();
-    final q = query.toLowerCase();
-    try {
-      final snapshot = await _collection.get();
-      final list = snapshot.docs
-          .map((doc) => Product.fromMap(doc.id, doc.data()))
-          .where((p) =>
-              p.name.toLowerCase().contains(q) || p.barcode.contains(query))
-          .toList();
-      if (list.isNotEmpty) return list;
-    } catch (_) {}
-    return sampleProducts
-        .where((p) =>
-            p.name.toLowerCase().contains(q) || p.barcode.contains(query))
-        .toList();
-  }
+  Future<String?> updateStockByBarcode(String barcode, int delta, {String? zone}) async {
+    return await _db.runTransaction<String?>((tx) async {
+      final snapshot = await _collection
+          .where('barcode', isEqualTo: barcode)
+          .limit(1)
+          .get();
+      if (snapshot.docs.isEmpty) return null;
+      final doc = snapshot.docs.first;
+      final data = doc.data();
+      final currentStock = (data['stock'] as num?)?.toInt() ?? 0;
+      final docZone = data['zone'] as String? ?? '';
+      final effectiveZone = (zone != null && zone.isNotEmpty) ? zone : docZone;
 
-  Future<List<Product>> getByZone(String zone) async {
-    try {
-      final snapshot = await _collection.where('zone', isEqualTo: zone).orderBy('name').get();
-      final list = snapshot.docs
-          .map((doc) => Product.fromMap(doc.id, doc.data()))
-          .toList();
-      if (list.isNotEmpty) return list;
-    } catch (_) {}
-    return sampleProducts.where((p) => p.zone == zone).toList();
-  }
+      final rawStockByZone = data['stockByZone'];
+      final stockByZone = <String, int>{};
+      if (rawStockByZone is Map && rawStockByZone.isNotEmpty) {
+        rawStockByZone.forEach((k, v) {
+          stockByZone[k.toString()] = (v as num?)?.toInt() ?? 0;
+        });
+      } else if (docZone.isNotEmpty) {
+        stockByZone[docZone] = currentStock;
+      }
 
-  Future<void> addProduct(Product product) async {
-    await _collection.add(product.toMap());
-  }
+      if (effectiveZone.isEmpty) {
+        return '${data['name']}: không xác định khu vực';
+      }
 
-  Future<void> updateProduct(String id, Map<String, dynamic> data) async {
-    data['updatedAt'] = DateTime.now().toIso8601String();
-    await _collection.doc(id).update(data);
-  }
+      final zoneStock = stockByZone[effectiveZone] ?? 0;
+      if (zoneStock + delta < 0) {
+        return '${data['name']}: chỉ còn $zoneStock ${data['unit']} ở $effectiveZone (cần ${-delta})';
+      }
 
-  Future<void> updateStock(String id, int newStock) async {
-    await _collection.doc(id).update({
-      'stock': newStock,
-      'serverStock': newStock,
-      'updatedAt': DateTime.now().toIso8601String(),
+      stockByZone[effectiveZone] = zoneStock + delta;
+      final newTotal = stockByZone.values.fold(0, (acc, v) => acc + v);
+      tx.update(doc.reference, {
+        'stock': newTotal,
+        'stockByZone': stockByZone,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      return null;
     });
   }
 
-  Future<void> deleteProduct(String id) async {
-    await _collection.doc(id).delete();
-  }
-
-  Future<List<Product>> getLowStockProducts() async {
-    try {
-      final snapshot = await _collection.get();
-      final list = snapshot.docs
-          .map((doc) => Product.fromMap(doc.id, doc.data()))
-          .where((p) => p.isLowStock)
-          .toList();
-      if (list.isNotEmpty) return list;
-    } catch (_) {}
-    return sampleProducts.where((p) => p.isLowStock).toList();
-  }
-
-  Future<String?> updateStockByBarcode(String barcode, int delta, {String? zone}) async {
-    if (delta < 0) {
-      return await _db.runTransaction<String?>((tx) async {
-        final snapshot = await _collection
-            .where('barcode', isEqualTo: barcode)
-            .limit(1)
-            .get();
-        if (snapshot.docs.isEmpty) return null;
-        final doc = snapshot.docs.first;
-        final currentStock = (doc.data()['stock'] as num?)?.toInt() ?? 0;
-        if (currentStock + delta < 0) {
-          return '${doc.data()['name']}: chỉ còn $currentStock (cần ${-delta})';
+  Future<int> recalculateStockFromStockByZone() async {
+    final snapshot = await _collection.get();
+    int fixed = 0;
+    for (final doc in snapshot.docs) {
+      final data = doc.data();
+      final rawStockByZone = data['stockByZone'];
+      if (rawStockByZone is Map && rawStockByZone.isNotEmpty) {
+        final correctTotal = rawStockByZone.values.fold<int>(0, (acc, v) => acc + ((v as num?)?.toInt() ?? 0));
+        final currentStock = (data['stock'] as num?)?.toInt() ?? 0;
+        if (currentStock != correctTotal) {
+          await doc.reference.update({
+            'stock': correctTotal,
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+          fixed++;
         }
-        final updateData = <String, dynamic>{
-          'stock': FieldValue.increment(delta),
-          'updatedAt': FieldValue.serverTimestamp(),
-        };
-        if (zone != null && zone.isNotEmpty) {
-          updateData['zone'] = zone;
-          updateData['warehouseLocation'] = '$zone-${doc.data()['id'] ?? ''}';
-        }
-        tx.update(doc.reference, updateData);
-        return null;
-      });
+      }
     }
-    final snapshot = await _collection
-        .where('barcode', isEqualTo: barcode)
-        .limit(1)
-        .get();
-    if (snapshot.docs.isEmpty) return null;
-    final updateData = <String, dynamic>{
-      'stock': FieldValue.increment(delta),
-      'updatedAt': FieldValue.serverTimestamp(),
-    };
-    if (zone != null && zone.isNotEmpty) {
-      updateData['zone'] = zone;
-      updateData['warehouseLocation'] = '$zone-${snapshot.docs.first.data()['id'] ?? ''}';
-    }
-    await snapshot.docs.first.reference.update(updateData);
-    return null;
+    return fixed;
   }
 
-  Future<String?> checkExportStock(List<Map<String, dynamic>> products) async {
+  Future<String?> checkExportStock(List<Map<String, dynamic>> products, {String? zone}) async {
     final errors = <String>[];
     for (final item in products) {
       final barcode = item['barcode'] as String? ?? '';
@@ -164,8 +124,18 @@ class ProductService {
       final product = await getProductByBarcode(barcode);
       if (product == null) {
         errors.add('$name: không tìm thấy trong kho');
-      } else if (product.stock < qty) {
-        errors.add('${product.name}: chỉ còn ${product.stock} ${product.unit.toLowerCase()} (cần $qty)');
+        continue;
+      }
+      final itemZone = item['zone'] as String? ?? zone;
+      if (itemZone != null && itemZone.isNotEmpty) {
+        final zoneStock = product.getStockInZone(itemZone);
+        if (zoneStock < qty) {
+          errors.add('${product.name}: chỉ còn $zoneStock ${product.unit.toLowerCase()} ở $itemZone (cần $qty)');
+        }
+      } else {
+        if (product.stock < qty) {
+          errors.add('${product.name}: chỉ còn ${product.stock} ${product.unit.toLowerCase()} (cần $qty)');
+        }
       }
     }
     return errors.isEmpty ? null : errors.join('\n');

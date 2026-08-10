@@ -23,6 +23,7 @@ import 'admin_zones_screen.dart';
 import 'analyst_dashboard_screen.dart';
 import 'transaction_history_screen.dart';
 import 'report_export_screen.dart';
+import 'migration_screen.dart';
 import 'web_shell.dart';
 
 class MainShell extends ConsumerStatefulWidget {
@@ -251,6 +252,12 @@ class _MainShellState extends ConsumerState<MainShell> {
                     context,
                     MaterialPageRoute(builder: (_) => const LoginScreen()),
                   );
+                case 'migration':
+                  if (!context.mounted) return;
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const MigrationScreen()),
+                  );
               }
             },
             itemBuilder: (context) => [
@@ -264,6 +271,17 @@ class _MainShellState extends ConsumerState<MainShell> {
                   ],
                 ),
               ),
+              if (role == AppRole.admin)
+                const PopupMenuItem<String>(
+                  value: 'migration',
+                  child: Row(
+                    children: [
+                      Icon(Icons.sync_alt, size: 20),
+                      SizedBox(width: 10),
+                      Text('Migration stockByZone'),
+                    ],
+                  ),
+                ),
               const PopupMenuDivider(),
               const PopupMenuItem<String>(
                 value: 'logout',

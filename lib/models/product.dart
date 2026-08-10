@@ -14,7 +14,6 @@ class Product {
   final int unitPerCase;
   final String note;
   final String imageUrl;
-  final Map<String, int> stockByZone;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -32,7 +31,6 @@ class Product {
     this.unitPerCase = 1,
     this.note = '',
     this.imageUrl = '',
-    this.stockByZone = const {},
     this.createdAt,
     this.updatedAt,
   });
@@ -43,13 +41,6 @@ class Product {
         ? warehouseLocation.split('-').first
         : (map['zone'] as String? ?? '');
     final updatedAtRaw = map['updatedAt'];
-    final rawStockByZone = map['stockByZone'];
-    final parsedStockByZone = <String, int>{};
-    if (rawStockByZone is Map) {
-      rawStockByZone.forEach((k, v) {
-        parsedStockByZone[k.toString()] = (v as num?)?.toInt() ?? 0;
-      });
-    }
 
     return Product(
       id: id,
@@ -65,7 +56,6 @@ class Product {
       unitPerCase: (map['unitPerCase'] as num?)?.toInt() ?? 1,
       note: map['note'] as String? ?? '',
       imageUrl: map['imageUrl'] as String? ?? '',
-      stockByZone: parsedStockByZone,
       createdAt: map['createdAt'] != null
           ? (map['createdAt'] is String
               ? DateTime.tryParse(map['createdAt'])
@@ -92,7 +82,6 @@ class Product {
         'unitPerCase': unitPerCase,
         'note': note,
         'imageUrl': imageUrl,
-        'stockByZone': stockByZone,
         'createdAt': createdAt?.toIso8601String(),
         'updatedAt': updatedAt?.toIso8601String(),
       };
@@ -105,11 +94,6 @@ class Product {
   bool get isLowStock => stock <= minStock;
   bool get isOutOfStock => stock == 0;
 
-  int getStockInZone(String zone) {
-    if (stockByZone.isNotEmpty) {
-      return stockByZone[zone] ?? 0;
-    }
-    if (this.zone == zone) return stock;
-    return 0;
-  }
+  int get stockInCases => unitPerCase > 0 ? stock ~/ unitPerCase : 0;
+  int get stockRemainder => unitPerCase > 0 ? stock % unitPerCase : stock;
 }

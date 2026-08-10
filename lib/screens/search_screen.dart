@@ -170,7 +170,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           if (!p.name.toLowerCase().contains(query.toLowerCase()) && !p.barcode.contains(query)) return false;
         }
       }
-      if (_selectedZone.isNotEmpty && p.zone != _selectedZone) return false;
+      if (_selectedZone.isNotEmpty && p.getStockInZone(_selectedZone) == 0) return false;
       if (_selectedCategory.isNotEmpty && p.category != _selectedCategory) return false;
       return true;
     }).toList();
@@ -213,7 +213,6 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 selectedColor: AppColors.primary,
                 backgroundColor: const Color(0xFFE8ECF4),
               ),
-              const SizedBox(width: 8),
               ChoiceChip(
                 label: Text('Barcode', style: TextStyle(fontSize: 13, color: _showBarcodeSearch ? Colors.white : AppColors.textPrimary)),
                 selected: _showBarcodeSearch,
@@ -223,14 +222,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               ),
               const Spacer(),
               Text('${filtered.length} kết quả', style: const TextStyle(fontSize: 12, color: AppColors.textMuted)),
-            ],
-          ),
-        ),
-        const SizedBox(height: 6),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Row(
-            children: [
+              const Spacer(),
               ActionChip(
                 avatar: Icon(Icons.location_on, size: 18, color: _selectedZone.isNotEmpty ? Colors.white : AppColors.primary),
                 label: Text(
@@ -242,7 +234,6 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 side: BorderSide.none,
                 padding: const EdgeInsets.symmetric(horizontal: 4),
               ),
-              const SizedBox(width: 8),
               ActionChip(
                 avatar: Icon(Icons.category_outlined, size: 18, color: _selectedCategory.isNotEmpty ? Colors.white : AppColors.primary),
                 label: Text(
@@ -299,14 +290,14 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                           const SizedBox(width: 12),
                           const Icon(Icons.location_on, size: 12, color: AppColors.textMuted),
                           const SizedBox(width: 2),
-                          Text(p.zone, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                          Text(_selectedZone.isNotEmpty ? _selectedZone : p.stockByZone.keys.where((z) => (p.stockByZone[z] ?? 0) > 0).join(', '), style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
                         ],
                       ),
                       trailing: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
-                          Text(formatStock(p.stock, p.unitPerCase, p.unit), style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.green, fontSize: 16)),
+                          Text(formatStock(_selectedZone.isNotEmpty ? p.getStockInZone(_selectedZone) : p.stock, p.unitPerCase, p.unit), style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.green, fontSize: 16)),
                         ],
                       ),
                     ),
