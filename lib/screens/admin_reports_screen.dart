@@ -94,26 +94,27 @@ class AdminReportsScreen extends ConsumerWidget {
     final lowStockProducts = products.where((p) => p.isLowStock).toList()
       ..sort((a, b) => a.stock.compareTo(b.stock));
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(22),
+      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Wrap(
-            spacing: 14,
-            runSpacing: 14,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _WebStat(icon: Icons.inventory_2_outlined, label: 'Tổng giá trị tồn', value: '$totalStock', color: AppColors.primary),
-              _WebStat(icon: Icons.swap_horiz, label: 'Sản phẩm', value: '${products.length}', color: AppColors.green),
-              _WebStat(icon: Icons.warning_amber, label: 'Sản phẩm sắp hết', value: '$lowStock', color: AppColors.orange),
+              Expanded(child: _WebStat(icon: Icons.inventory_2_outlined, label: 'Tổng giá trị tồn', value: '$totalStock', color: AppColors.primary)),
+              const SizedBox(width: 12),
+              Expanded(child: _WebStat(icon: Icons.swap_horiz, label: 'Sản phẩm', value: '${products.length}', color: AppColors.green)),
+              const SizedBox(width: 12),
+              Expanded(child: _WebStat(icon: Icons.warning_amber, label: 'Sản phẩm sắp hết', value: '$lowStock', color: AppColors.orange)),
             ],
           ),
-          const SizedBox(height: 22),
+          const SizedBox(height: 16),
           const Text('Giá trị tồn kho theo khu vực', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           _ZoneGrid(products: products),
-          const SizedBox(height: 22),
+          const SizedBox(height: 16),
           const Text('Top sản phẩm tồn thấp', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           WebTable(
             minWidth: 700,
             headers: const ['Sản phẩm', 'Khu vực', 'Tồn kho'],
@@ -215,7 +216,6 @@ class _WebStat extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 220,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -307,72 +307,84 @@ class _ZoneGrid extends StatelessWidget {
         ),
       );
     }
-    return Wrap(
-      spacing: 14,
-      runSpacing: 14,
-      children: sortedZones.map((e) {
-        final color = _zoneColor(e.key);
-        return Container(
-          width: 240,
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            border: Border.all(color: AppColors.border),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Center(
-                  child: Text(
-                    e.key,
-                    style: TextStyle(
-                      color: color,
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final cols = constraints.maxWidth >= 1000
+            ? 3
+            : constraints.maxWidth >= 640
+                ? 2
+                : 1;
+        const spacing = 12.0;
+        final cellW = (constraints.maxWidth - spacing * (cols - 1)) / cols;
+        return Wrap(
+          spacing: spacing,
+          runSpacing: spacing,
+          children: sortedZones.map((e) {
+            final color = _zoneColor(e.key);
+            return Container(
+              width: cellW,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                border: Border.all(color: AppColors.border),
+                borderRadius: BorderRadius.circular(12),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Khu ${e.key}',
-                      style: const TextStyle(fontWeight: FontWeight.w600),
+              child: Row(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: color.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(10),
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '${e.value} sản phẩm',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: AppColors.textMuted,
+                    child: Center(
+                      child: Text(
+                        e.key,
+                        style: TextStyle(
+                          color: color,
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Khu ${e.key}',
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${e.value} sản phẩm',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textMuted,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Text(
+                    '${e.value}',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 16,
+                      color: color,
+                    ),
+                  ),
+                ],
               ),
-              Text(
-                '${e.value}',
-                style: TextStyle(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 16,
-                  color: color,
-                ),
-              ),
-            ],
-          ),
-        );
-      }).toList(),
-    );
+            );
+          },
+        ).toList(),
+      );
+    },
+  );
   }
 
   Color _zoneColor(String code) {

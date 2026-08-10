@@ -4,6 +4,7 @@ import '../providers/product_provider.dart';
 import '../providers/zone_provider.dart';
 import '../models/zone.dart';
 import '../theme/app_theme.dart';
+import '../widgets/web_table.dart';
 import 'admin_zone_detail_screen.dart';
 
 class AdminZonesScreen extends ConsumerWidget {
@@ -209,7 +210,7 @@ class AdminZonesScreen extends ConsumerWidget {
   }
 }
 
-class _ZonesGrid extends StatelessWidget {
+class _ZonesGrid extends StatefulWidget {
   final List<Zone> zones;
   final List products;
   final VoidCallback? onAdd;
@@ -224,20 +225,36 @@ class _ZonesGrid extends StatelessWidget {
     this.onDelete,
   });
 
+  @override
+  State<_ZonesGrid> createState() => _ZonesGridState();
+}
+
+class _ZonesGridState extends State<_ZonesGrid> {
+  String _search = '';
+
   Map<String, int> get _productCounts {
     final counts = <String, int>{};
-    for (final p in products) {
+    for (final p in widget.products) {
       final zone = (p.zone as String?) ?? '';
       counts[zone] = (counts[zone] ?? 0) + 1;
     }
     return counts;
   }
 
+  List<Zone> get _filtered {
+    final q = _search.trim().toLowerCase();
+    if (q.isEmpty) return widget.zones;
+    return widget.zones.where((z) =>
+        z.code.toLowerCase().contains(q) ||
+        z.label.toLowerCase().contains(q) ||
+        z.description.toLowerCase().contains(q)).toList();
+  }
+
   @override
   Widget build(BuildContext context) {
     final counts = _productCounts;
 
-    if (zones.isEmpty) {
+    if (widget.zones.isEmpty) {
       return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -252,6 +269,15 @@ class _ZonesGrid extends StatelessWidget {
       );
     }
 
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth > 800) return _web(counts);
+        return _mobile(counts);
+      },
+    );
+  }
+
+  Widget _mobile(Map<String, int> counts) {
     return Column(
       children: [
         Expanded(
@@ -259,7 +285,7 @@ class _ZonesGrid extends StatelessWidget {
             padding: const EdgeInsets.all(12),
             child: LayoutBuilder(
               builder: (context, constraints) {
-                final rows = (zones.length / 2).ceil();
+                final rows = (widget.zones.length / 2).ceil();
                 const spacing = 10.0;
                 final availH = constraints.maxHeight - (rows - 1) * spacing;
                 final rowH = availH / rows;
@@ -275,9 +301,9 @@ class _ZonesGrid extends StatelessWidget {
                     crossAxisSpacing: spacing,
                     mainAxisSpacing: spacing,
                   ),
-                  itemCount: zones.length,
+                  itemCount: widget.zones.length,
                   itemBuilder: (_, i) {
-                    final z = zones[i];
+                    final z = widget.zones[i];
                     final productCount = counts[z.code] ?? 0;
 
                     return Card(
@@ -302,15 +328,15 @@ class _ZonesGrid extends StatelessWidget {
                                   ),
                                   const Spacer(),
                                   Text('$productCount SP', style: TextStyle(color: AppColors.textMuted, fontSize: 11)),
-                                  if (onEdit != null || onDelete != null) ...[
+                                  if (widget.onEdit != null || widget.onDelete != null) ...[
                                     const SizedBox(width: 4),
                                     PopupMenuButton<String>(
                                       padding: EdgeInsets.zero,
                                       iconSize: 18,
                                       icon: Icon(Icons.more_vert, size: 16, color: AppColors.textMuted),
                                       onSelected: (v) {
-                                        if (v == 'edit') onEdit?.call(z);
-                                        if (v == 'delete') onDelete?.call(z);
+                                        if (v == 'edit') widget.onEdit?.call(z);
+                                        if (v == 'delete') widget.onDelete?.call(z);
                                       },
                                       itemBuilder: (_) => [
                                         const PopupMenuItem(value: 'edit', child: Row(children: [Icon(Icons.edit, size: 16), SizedBox(width: 8), Text('Sửa')])),
@@ -354,7 +380,7 @@ class _ZonesGrid extends StatelessWidget {
               children: [
                 const Icon(Icons.info_outline, size: 16, color: AppColors.primary),
                 const SizedBox(width: 8),
-                Text('Tổng cộng ${zones.length} khu vực · ${products.length} sản phẩm', style: TextStyle(color: AppColors.primary, fontSize: 12)),
+                Text('Tổng cộng ${widget.zones.length} khu vực · ${widget.products.length} sản phẩm', style: TextStyle(color: AppColors.primary, fontSize: 12)),
               ],
             ),
           ),
@@ -363,10 +389,117 @@ class _ZonesGrid extends StatelessWidget {
     );
   }
 
+  Widget _web(Map<String, int> counts) {
+    final filtered = _filtered;
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(22),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              SizedBox(
+                width: 260,
+                child: TextField(
+                  decoration: const InputDecoration(
+                    hintText: 'Tìm khu vực...',
+                    prefixIcon: Icon(Icons.search, size: 20),
+                    isDense: true,
+                    contentPadding: EdgeInsets.symmetric(vertical: 10),
+                  ),
+                  onChanged: (v) => setState(() => _search = v),
+                ),
+              ),
+              FilledButton.icon(
+                onPressed: widget.onAdd,
+                icon: const Icon(Icons.add, size: 18),
+                label: const Text('Thêm khu vực'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Text(
+            '${filtered.length} khu vực · ${widget.products.length} sản phẩm',
+            style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
+          ),
+          const SizedBox(height: 10),
+          WebTable(
+            minWidth: 800,
+            headers: const ['Mã', 'Tên khu vực', 'Số sản phẩm', 'Thứ tự', 'Thao tác'],
+            rows: [
+              for (final z in filtered)
+                [
+                  _ZoneCodeChip(code: z.code, color: _zoneColor(z.code)),
+                  InkWell(
+                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AdminZoneDetailScreen(zone: z))),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(z.label, style: const TextStyle(fontWeight: FontWeight.w600, color: AppColors.primary)),
+                        if (z.description.isNotEmpty)
+                          Text(z.description, style: const TextStyle(fontSize: 11, color: AppColors.textMuted), maxLines: 2, overflow: TextOverflow.ellipsis),
+                      ],
+                    ),
+                  ),
+                  Text(
+                    '${counts[z.code] ?? 0}',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: (counts[z.code] ?? 0) > 0 ? AppColors.primary : AppColors.textMuted,
+                    ),
+                  ),
+                  Text('${z.sortOrder}', style: const TextStyle(color: AppColors.textSecondary)),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        visualDensity: VisualDensity.compact,
+                        tooltip: 'Sửa',
+                        icon: const Icon(Icons.edit, size: 18, color: AppColors.textSecondary),
+                        onPressed: widget.onEdit == null ? null : () => widget.onEdit!(z),
+                      ),
+                      IconButton(
+                        visualDensity: VisualDensity.compact,
+                        tooltip: 'Xóa',
+                        icon: const Icon(Icons.delete_outline, size: 18, color: AppColors.red),
+                        onPressed: widget.onDelete == null ? null : () => widget.onDelete!(z),
+                      ),
+                    ],
+                  ),
+                ],
+            ],
+            cellAligns: const [null, null, TextAlign.right, null, null],
+          ),
+        ],
+      ),
+    );
+  }
+
   Color _zoneColor(String code) {
     if (code.startsWith('A')) return AppColors.primary;
     if (code.startsWith('B')) return AppColors.green;
     if (code.startsWith('C')) return AppColors.orange;
     return Colors.grey;
+  }
+}
+
+class _ZoneCodeChip extends StatelessWidget {
+  final String code;
+  final Color color;
+  const _ZoneCodeChip({required this.code, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(code, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: color)),
+    );
   }
 }
