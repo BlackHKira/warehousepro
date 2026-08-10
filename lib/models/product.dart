@@ -12,6 +12,8 @@ class Product {
   final int serverStock;
   final int minStock;
   final int unitPerCase;
+  final int unitPrice;
+  final int exportPrice;
   final String note;
   final String imageUrl;
   final Map<String, int> stockByZone;
@@ -30,6 +32,8 @@ class Product {
     this.serverStock = 0,
     this.minStock = 10,
     this.unitPerCase = 1,
+    this.unitPrice = 0,
+    this.exportPrice = 0,
     this.note = '',
     this.imageUrl = '',
     this.stockByZone = const {},
@@ -63,6 +67,8 @@ class Product {
       serverStock: (map['serverStock'] as num?)?.toInt() ?? 0,
       minStock: (map['minStock'] as num?)?.toInt() ?? 10,
       unitPerCase: (map['unitPerCase'] as num?)?.toInt() ?? 1,
+      unitPrice: (map['unitPrice'] as num?)?.toInt() ?? 0,
+      exportPrice: (map['exportPrice'] as num?)?.toInt() ?? 0,
       note: map['note'] as String? ?? '',
       imageUrl: map['imageUrl'] as String? ?? '',
       stockByZone: parsedStockByZone,
@@ -90,6 +96,8 @@ class Product {
         'serverStock': serverStock,
         'minStock': minStock,
         'unitPerCase': unitPerCase,
+        'unitPrice': unitPrice,
+        'exportPrice': exportPrice,
         'note': note,
         'imageUrl': imageUrl,
         'stockByZone': stockByZone,
