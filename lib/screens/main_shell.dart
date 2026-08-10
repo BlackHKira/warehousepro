@@ -23,7 +23,7 @@ import 'admin_zones_screen.dart';
 import 'analyst_dashboard_screen.dart';
 import 'transaction_history_screen.dart';
 import 'report_export_screen.dart';
-import 'migration_screen.dart';
+import 'finance_screen.dart';
 import 'web_shell.dart';
 
 class MainShell extends ConsumerStatefulWidget {
@@ -252,12 +252,6 @@ class _MainShellState extends ConsumerState<MainShell> {
                     context,
                     MaterialPageRoute(builder: (_) => const LoginScreen()),
                   );
-                case 'migration':
-                  if (!context.mounted) return;
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const MigrationScreen()),
-                  );
               }
             },
             itemBuilder: (context) => [
@@ -309,7 +303,7 @@ class _MainShellState extends ConsumerState<MainShell> {
               context: context,
               builder: (_) => AlertDialog(
                 title: const Text('Chú ý'),
-                content: const Text('Trang chỉ dành cho ship'),
+                content: const Text('Trang chỉ dành cho shipper!!!'),
                 actions: [
                   TextButton(
                     onPressed: () => Navigator.pop(context),
@@ -422,6 +416,12 @@ const _analystTabs = [
     'Tồn kho',
   ),
   _TabDef(
+    FinanceScreen(embedded: true),
+    Icons.account_balance_outlined,
+    Icons.account_balance,
+    'Chi phí',
+  ),
+  _TabDef(
     AdminReportsScreen(embedded: true),
     Icons.bar_chart_outlined,
     Icons.bar_chart,
@@ -457,6 +457,14 @@ const _analystWebTabs = [
     path: 'inventory',
     title: 'Tồn kho — Chế độ kế toán',
     description: 'Xem tồn kho theo sản phẩm và khu vực, chỉ đọc không chỉnh sửa.',
+  ),
+  WebTab(
+    screen: FinanceScreen(embedded: true),
+    icon: Icons.account_balance_outlined,
+    label: 'Chi phí',
+    path: 'finance',
+    title: 'Chi phí & Giá trị kho',
+    description: 'Tổng quan giá trị tồn kho theo giá nhập/bán, đã chi và đã thu hôm nay.',
   ),
   WebTab(
     screen: AdminReportsScreen(embedded: true),
