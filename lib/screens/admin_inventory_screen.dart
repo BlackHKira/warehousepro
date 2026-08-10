@@ -41,6 +41,14 @@ class _InventoryBodyState extends State<_InventoryBody> {
     return p.stock;
   }
 
+  String _zoneLabel(Product p) {
+    if (p.stockByZone.isNotEmpty) {
+      final zones = p.stockByZone.keys.where((z) => (p.stockByZone[z] ?? 0) > 0).join(', ');
+      if (zones.isNotEmpty) return zones;
+    }
+    return p.zone;
+  }
+
   List<Product> get _filtered {
     final list = widget.products.where((p) {
       if (_search.isNotEmpty) {
@@ -143,7 +151,7 @@ class _InventoryBodyState extends State<_InventoryBody> {
                     child: Center(child: Text(p.zone, style: TextStyle(color: _zoneColor(p.zone), fontSize: 12, fontWeight: FontWeight.bold))),
                   ),
                   title: Text(p.name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-                  subtitle: Text('${p.category} · ${p.zone}', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                  subtitle: Text('${p.category} · ${_zoneLabel(p)}', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
                   trailing: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     crossAxisAlignment: CrossAxisAlignment.end,
@@ -230,7 +238,16 @@ class _InventoryBodyState extends State<_InventoryBody> {
                         Text(p.sku, style: const TextStyle(fontSize: 11, color: AppColors.textMuted)),
                     ],
                   ),
-                  _ZoneChip(code: p.zone, color: _zoneColor(p.zone)),
+                  Wrap(
+                    spacing: 4,
+                    runSpacing: 4,
+                    children: [
+                      for (final z in p.stockByZone.entries.where((e) => e.value > 0).map((e) => e.key).toList().isNotEmpty
+                          ? p.stockByZone.entries.where((e) => e.value > 0).map((e) => e.key).toList()
+                          : [p.zone])
+                        _ZoneChip(code: z, color: _zoneColor(z)),
+                    ],
+                  ),
                   Text(p.unit, style: const TextStyle(color: AppColors.textSecondary)),
                   Text(
                     formatStockDetail(_stock(p), p.unitPerCase, p.unit),
