@@ -46,7 +46,7 @@ class ReportExportScreen extends ConsumerWidget {
                     ),
                     const SizedBox(height: 22),
                     _ExportForm(
-                      onExport: () => _exportExcel(context, ref, products),
+                      onExport: (type) => _exportExcel(context, ref, products, type),
                       onCopy: () => _copyReport(context, products, warehouse),
                     ),
                   ],
@@ -107,7 +107,7 @@ class ReportExportScreen extends ConsumerWidget {
                       width: double.infinity,
                       height: 48,
                       child: FilledButton.icon(
-                        onPressed: () => _exportExcel(context, ref, products),
+                        onPressed: () => _exportExcel(context, ref, products, 'Tồn kho'),
                         icon: const Icon(Icons.file_download_outlined),
                         label: const Text('Xuất báo cáo Excel'),
                       ),
@@ -145,6 +145,7 @@ class ReportExportScreen extends ConsumerWidget {
     BuildContext context,
     WidgetRef ref,
     List<Product> products,
+    String type,
   ) async {
     final warehouse = ref.read(warehouseProvider);
 
@@ -155,7 +156,7 @@ class ReportExportScreen extends ConsumerWidget {
     }
 
     try {
-      final bytes = _buildExcel(products, warehouse);
+      final bytes = _buildExcel(products, warehouse, type);
       final dir = await getApplicationDocumentsDirectory();
       final now = DateTime.now();
       final stamp =
@@ -183,9 +184,10 @@ class ReportExportScreen extends ConsumerWidget {
     }
   }
 
-  List<int> _buildExcel(List<Product> products, WarehouseState warehouse) {
+  List<int> _buildExcel(List<Product> products, WarehouseState warehouse, String type) {
     final excel = Excel.createExcel();
 
+    // Always create base sheets
     final invSheet = excel['Tồn kho'];
     invSheet.appendRow([
       TextCellValue('Mã vạch'),
@@ -239,9 +241,70 @@ class ReportExportScreen extends ConsumerWidget {
       ]);
     }
 
+    // Add financial sheets when type is "Chi phí & Giá trị kho"
+    if (type == 'Chi phí & Giá trị kho') {
+      final totalImportValue = products.fold<int>(0, (t, p) => t + p.stock * p.unitPrice);
+      final totalExportValue = products.fold<int>(0, (t, p) => t + p.stock * p.exportPrice);
+      final grossProfit = totalExportValue - totalImportValue;
+      final profitRate = totalImportValue > 0 ? (grossProfit / totalImportValue * 100) : 0.0;
+
+      final costSheet = excel['Chi phí'];
+      costSheet.appendRow([TextCellValue('Chỉ tiêu'), TextCellValue('Giá trị')]);
+      costSheet.appendRow([TextCellValue('Tổng GT tồn (giá nhập)'), TextCellValue(_formatVND(totalImportValue))]);
+      costSheet.appendRow([TextCellValue('Tổng GT tồn (giá bán)'), TextCellValue(_formatVND(totalExportValue))]);
+      costSheet.appendRow([TextCellValue('Lãi gross trên tồn kho'), TextCellValue(_formatVND(grossProfit))]);
+      costSheet.appendRow([TextCellValue('Tỷ lệ lãi'), TextCellValue('${profitRate.toStringAsFixed(1)}%')]);
+      costSheet.appendRow([TextCellValue('Thời điểm xuất'), TextCellValue(DateTime.now().toString())]);
+
+      final costDetailSheet = excel['Chi phí theo SP'];
+      costDetailSheet.appendRow([
+        TextCellValue('Tên sản phẩm'),
+        TextCellValue('Mã vạch'),
+        TextCellValue('Khu vực'),
+        TextCellValue('Tồn (thùng)'),
+        TextCellValue('Giá nhập'),
+        TextCellValue('Giá bán'),
+        TextCellValue('GT tồn (nhập)'),
+        TextCellValue('GT tồn (bán)'),
+      ]);
+      final sorted = List<Product>.from(products)
+        ..sort((a, b) => (b.stock * b.unitPrice).compareTo(a.stock * a.unitPrice));
+      for (final p in sorted) {
+        final cases = p.unitPerCase > 0 ? p.stock ~/ p.unitPerCase : p.stock;
+        costDetailSheet.appendRow([
+          TextCellValue(p.name),
+          TextCellValue(p.barcode),
+          TextCellValue(p.zone),
+          IntCellValue(cases),
+          TextCellValue(_formatVND(p.unitPrice)),
+          TextCellValue(_formatVND(p.exportPrice)),
+          TextCellValue(_formatVND(p.stock * p.unitPrice)),
+          TextCellValue(_formatVND(p.stock * p.exportPrice)),
+        ]);
+      }
+      costDetailSheet.appendRow([
+        TextCellValue('TỔNG CỘNG'),
+        TextCellValue(''),
+        TextCellValue(''),
+        IntCellValue(sorted.fold<int>(0, (t, p) => t + (p.unitPerCase > 0 ? p.stock ~/ p.unitPerCase : p.stock))),
+        TextCellValue(''),
+        TextCellValue(''),
+        TextCellValue(_formatVND(totalImportValue)),
+        TextCellValue(_formatVND(totalExportValue)),
+      ]);
+    }
+
     final bytes = excel.save();
     if (bytes == null) throw Exception('Không tạo được file');
     return bytes;
+  }
+
+  static String _formatVND(int amount) {
+    final formatted = amount.toString().replaceAllMapped(
+      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+      (m) => '${m[1]}.',
+    );
+    return '$formattedđ';
   }
 
   void _showWebFallback(BuildContext context, List<Product> products, WarehouseState warehouse) {
@@ -293,6 +356,44 @@ class ReportExportScreen extends ConsumerWidget {
   String _buildTextReport(List<Product> products, WarehouseState warehouse) {
     final totalStock = products.fold(0, (s, p) => s + p.stock);
     final lowStock = products.where((p) => p.isLowStock).length;
+    final totalImportValue = products.fold<int>(0, (t, p) => t + p.stock * p.unitPrice);
+    final totalExportValue = products.fold<int>(0, (t, p) => t + p.stock * p.exportPrice);
+    final grossProfit = totalExportValue - totalImportValue;
+    final profitRate = totalImportValue > 0 ? (grossProfit / totalImportValue * 100) : 0.0;
+
+    final now = DateTime.now();
+    final todayStart = DateTime(now.year, now.month, now.day);
+
+    int todayImportCost = 0;
+    for (final t in warehouse.recentImports) {
+      final createdAt = DateTime.tryParse(t['createdAt'] ?? '');
+      if (createdAt == null || createdAt.isBefore(todayStart)) continue;
+      final items = t['products'] as List<dynamic>? ?? [];
+      for (final item in items) {
+        if (item is Map<String, dynamic>) {
+          final barcode = item['barcode'] as String? ?? '';
+          final qty = (item['quantity'] as num?)?.toInt() ?? 0;
+          final product = products.where((p) => p.barcode == barcode).firstOrNull;
+          if (product != null) todayImportCost += qty * product.unitPrice;
+        }
+      }
+    }
+
+    int todayExportRevenue = 0;
+    for (final t in warehouse.recentExports) {
+      final createdAt = DateTime.tryParse(t['createdAt'] ?? '');
+      if (createdAt == null || createdAt.isBefore(todayStart)) continue;
+      final items = t['products'] as List<dynamic>? ?? [];
+      for (final item in items) {
+        if (item is Map<String, dynamic>) {
+          final barcode = item['barcode'] as String? ?? '';
+          final qty = (item['quantity'] as num?)?.toInt() ?? 0;
+          final product = products.where((p) => p.barcode == barcode).firstOrNull;
+          if (product != null) todayExportRevenue += qty * product.exportPrice;
+        }
+      }
+    }
+
     final buffer = StringBuffer()
       ..writeln('BÁO CÁO TỒN KHO')
       ..writeln('Thời điểm: ${DateTime.now()}')
@@ -302,6 +403,13 @@ class ReportExportScreen extends ConsumerWidget {
       ..writeln('Sản phẩm sắp hết: $lowStock')
       ..writeln('Nhập hôm nay: ${warehouse.todayImports}')
       ..writeln('Xuất hôm nay: ${warehouse.todayExports}')
+      ..writeln('Tiền nhập hôm nay: ${_formatVND(todayImportCost)}')
+      ..writeln('Tiền xuất hôm nay: ${_formatVND(todayExportRevenue)}')
+      ..writeln('----------------------------')
+      ..writeln('GIÁ TRỊ TỒN KHO:')
+      ..writeln('Tồn kho (giá nhập): ${_formatVND(totalImportValue)}')
+      ..writeln('Tồn kho (giá bán): ${_formatVND(totalExportValue)}')
+      ..writeln('Lãi gross: ${_formatVND(grossProfit)} (${profitRate.toStringAsFixed(1)}%)')
       ..writeln('----------------------------')
       ..writeln('SẢN PHẨM TỒN THẤP:');
     for (final p in products.where((p) => p.isLowStock).take(10)) {
@@ -406,7 +514,7 @@ class _WebStat extends StatelessWidget {
 }
 
 class _ExportForm extends StatefulWidget {
-  final VoidCallback onExport;
+  final ValueChanged<String> onExport;
   final VoidCallback onCopy;
   const _ExportForm({required this.onExport, required this.onCopy});
 
@@ -425,6 +533,7 @@ class _ExportFormState extends State<_ExportForm> {
     'Lịch sử nhập / xuất',
     'Giá trị theo khu vực',
     'Tổng hợp theo tháng',
+    'Chi phí & Giá trị kho',
   ];
 
   @override
@@ -508,9 +617,9 @@ class _ExportFormState extends State<_ExportForm> {
           SizedBox(
             width: double.infinity,
             height: 46,
-            child: FilledButton.icon(
-              onPressed: widget.onExport,
-              icon: const Icon(Icons.file_download_outlined, size: 18),
+              child: FilledButton.icon(
+                onPressed: () => widget.onExport(_type),
+                icon: const Icon(Icons.file_download_outlined, size: 18),
               label: const Text('Xuất file Excel'),
             ),
           ),
