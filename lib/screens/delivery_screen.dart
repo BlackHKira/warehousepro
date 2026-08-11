@@ -193,28 +193,55 @@ class DeliveryScreen extends ConsumerWidget {
                 width: double.infinity,
                 child: FilledButton.icon(
                   onPressed: () async {
+                    final nameController = TextEditingController();
                     final confirmed = await showDialog<bool>(
                       context: context,
                       builder: (ctx) => AlertDialog(
-                        title: const Text('Xác nhận'),
-                        content: const Text('Đánh dấu phiếu này đã hoàn thành giao hàng?'),
+                        title: const Text('Hoàn thành giao hàng'),
+                        content: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Text('Nhập tên người giao hàng:'),
+                            const SizedBox(height: 12),
+                            TextField(
+                              controller: nameController,
+                              decoration: const InputDecoration(
+                                labelText: 'Tên người giao',
+                                border: OutlineInputBorder(),
+                              ),
+                            ),
+                          ],
+                        ),
                         actions: [
                           TextButton(
                             onPressed: () => Navigator.pop(ctx, false),
                             child: const Text('Huỷ'),
                           ),
                           FilledButton(
-                            onPressed: () => Navigator.pop(ctx, true),
+                            onPressed: () {
+                              if (nameController.text.trim().isEmpty) return;
+                              Navigator.pop(ctx, true);
+                            },
                             child: const Text('Hoàn thành'),
                           ),
                         ],
                       ),
                     );
                     if (confirmed == true) {
+                      final deliveredByName = nameController.text.trim();
                       await ref
                           .read(warehouseProvider.notifier)
-                          .updateExportStatus(data, 'completed');
+                          .updateExportStatus(data, 'completed', deliveredBy: deliveredByName);
                       if (ctx.mounted) Navigator.pop(ctx);
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Đã hoàn thành phiếu xuất'),
+                            behavior: SnackBarBehavior.floating,
+                            backgroundColor: AppColors.green,
+                          ),
+                        );
+                      }
                     }
                   },
                   icon: const Icon(Icons.check_circle_outline),

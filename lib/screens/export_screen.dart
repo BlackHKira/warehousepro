@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/zone.dart';
 import '../providers/warehouse_provider.dart' show warehouseProvider;
+import '../providers/user_profile_provider.dart';
 import '../providers/zone_provider.dart' show zonesProvider;
 import '../providers/selected_tab_provider.dart';
 import '../models/product.dart';
@@ -234,6 +235,17 @@ class _CreateExportTabState extends ConsumerState<_CreateExportTab> {
 
   Future<void> _save() async {
     if (_items.isEmpty) return;
+    if (_customerController.text.trim().isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Vui lòng nhập tên khách hàng'),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: AppColors.red,
+        ),
+      );
+      return;
+    }
     final totalQty = _items.fold(0, (sum, item) => sum + item.qty * item.unitPerCase);
     final zoneCounts = <String, int>{};
     for (final item in _items) {
@@ -242,6 +254,34 @@ class _CreateExportTabState extends ConsumerState<_CreateExportTab> {
     final mainZone = zoneCounts.entries
         .reduce((a, b) => a.value >= b.value ? a : b)
         .key;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Xác nhận lưu phiếu xuất'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Sản phẩm: ${_items.length} loại, $totalQty thùng'),
+            Text('Khu vực chính: $mainZone'),
+            Text('Người tạo: ${ref.read(userProfileProvider)?.name ?? ''}'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Huỷ'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Lưu phiếu'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
     final productsList = _items
         .map(
           (item) => {
@@ -263,6 +303,7 @@ class _CreateExportTabState extends ConsumerState<_CreateExportTab> {
           zone: mainZone,
           products: productsList,
           status: _selectedStatus,
+          createdBy: ref.read(userProfileProvider)?.name ?? '',
         );
     if (!mounted) return;
     if (ok) {
@@ -340,6 +381,7 @@ class _CreateExportTabState extends ConsumerState<_CreateExportTab> {
                     if (v != null) setState(() => _selectedStatus = v);
                   },
                 ),
+                const SizedBox(height: 8),
               ],
             ),
           ),

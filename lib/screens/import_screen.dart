@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/zone.dart';
 import '../providers/warehouse_provider.dart' show warehouseProvider;
+import '../providers/user_profile_provider.dart';
 import '../providers/zone_provider.dart' show zonesProvider;
 import '../providers/selected_tab_provider.dart';
 import '../models/product.dart';
@@ -225,6 +226,17 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
 
   Future<void> _save() async {
     if (_items.isEmpty) return;
+    if (_supplierController.text.trim().isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Vui lòng nhập tên nhà cung cấp'),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: AppColors.red,
+        ),
+      );
+      return;
+    }
     final totalQty = _items.fold(0, (sum, item) => sum + item.qty * item.unitPerCase);
     final zoneCounts = <String, int>{};
     for (final item in _items) {
@@ -239,6 +251,7 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
           zone: mainZone,
           products: productsList,
           note: _noteController.text.trim(),
+          createdBy: ref.read(userProfileProvider)?.name ?? '',
         );
     if (!mounted) return;
     if (ok) {

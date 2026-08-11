@@ -126,6 +126,8 @@ class WarehouseNotifier extends StateNotifier<WarehouseState> {
             'products': data['products'],
             'note': data['note'],
             'status': data['status'],
+            'createdBy': data['createdBy'] ?? '',
+            'deliveredBy': data['deliveredBy'] ?? '',
             'syncStatus': 'synced',
             'createdAt': createdAt,
           });
@@ -141,6 +143,8 @@ class WarehouseNotifier extends StateNotifier<WarehouseState> {
             'products': data['products'] ?? [],
             'note': data['note'] ?? '',
             'status': data['status'],
+            'createdBy': data['createdBy'] ?? '',
+            'deliveredBy': data['deliveredBy'] ?? '',
             'syncStatus': 'synced',
             'createdAt': ts?.toDate().toIso8601String() ?? syncTime,
           });
@@ -205,6 +209,7 @@ class WarehouseNotifier extends StateNotifier<WarehouseState> {
     String zone = 'D',
     List<Map<String, dynamic>> products = const [],
     String note = '',
+    String createdBy = '',
   }) async {
     return await _addTransaction(
       'import',
@@ -213,6 +218,7 @@ class WarehouseNotifier extends StateNotifier<WarehouseState> {
       zone: zone,
       products: products,
       note: note,
+      createdBy: createdBy,
     );
   }
 
@@ -223,6 +229,7 @@ class WarehouseNotifier extends StateNotifier<WarehouseState> {
     List<Map<String, dynamic>> products = const [],
     String note = '',
     String status = 'pending',
+    String createdBy = '',
   }) async {
     return await _addTransaction(
       'export',
@@ -232,10 +239,11 @@ class WarehouseNotifier extends StateNotifier<WarehouseState> {
       products: products,
       note: note,
       status: status,
+      createdBy: createdBy,
     );
   }
 
-  Future<bool> updateExportStatus(Map<String, dynamic> order, String newStatus) async {
+  Future<bool> updateExportStatus(Map<String, dynamic> order, String newStatus, {String? deliveredBy}) async {
     try {
       final rawId = order['id'];
       final localId = rawId is int ? rawId : null;
@@ -255,6 +263,8 @@ class WarehouseNotifier extends StateNotifier<WarehouseState> {
           'products': order['products'],
           'note': order['note'],
           'status': 'completed',
+          'createdBy': order['createdBy'] ?? '',
+          'deliveredBy': deliveredBy ?? '',
           'createdAt': FieldValue.serverTimestamp(),
         });
         firestoreId = docRef.id;
@@ -301,6 +311,7 @@ class WarehouseNotifier extends StateNotifier<WarehouseState> {
     List<Map<String, dynamic>> products = const [],
     String note = '',
     String? status,
+    String createdBy = '',
   }) async {
     try {
       final now = DateTime.now();
@@ -328,6 +339,7 @@ class WarehouseNotifier extends StateNotifier<WarehouseState> {
             'products': products,
             'note': note,
             'status': effectiveStatus,
+            'createdBy': createdBy,
             'createdAt': FieldValue.serverTimestamp(),
           });
 
@@ -352,6 +364,7 @@ class WarehouseNotifier extends StateNotifier<WarehouseState> {
           'products': products,
           'note': note,
           'status': effectiveStatus,
+          'createdBy': createdBy,
           'syncStatus': isPendingExport ? 'local_only' : 'synced',
           'createdAt': now.toIso8601String(),
         };
@@ -376,6 +389,7 @@ class WarehouseNotifier extends StateNotifier<WarehouseState> {
           'products': products,
           'note': note,
           'status': effectiveStatus,
+          'createdBy': createdBy,
           'syncStatus': effectiveStatus == 'pending' ? 'local_only' : 'pending',
           'createdAt': now.toIso8601String(),
         };
@@ -416,6 +430,7 @@ class WarehouseNotifier extends StateNotifier<WarehouseState> {
           'zone': entry['zone'] ?? 'D',
           'products': entry['products'] ?? [],
           'note': entry['note'] ?? '',
+          'createdBy': entry['createdBy'] ?? '',
           'status': entry['status'],
           'createdAt': FieldValue.serverTimestamp(),
         });
