@@ -60,6 +60,8 @@ class ActivityHistoryScreen extends ConsumerWidget {
                 docId: doc.id,
                 items: (data['items'] as num?)?.toInt() ?? 0,
                 createdAt: data['createdAt'],
+                createdBy: data['createdBy'] as String? ?? '',
+                deliveredBy: data['deliveredBy'] as String? ?? '',
               );
             },
           );
@@ -75,6 +77,8 @@ class _ActivityTile extends StatelessWidget {
   final String docId;
   final int items;
   final dynamic createdAt;
+  final String createdBy;
+  final String deliveredBy;
 
   const _ActivityTile({
     required this.type,
@@ -82,15 +86,14 @@ class _ActivityTile extends StatelessWidget {
     required this.docId,
     required this.items,
     required this.createdAt,
+    this.createdBy = '',
+    this.deliveredBy = '',
   });
 
   @override
   Widget build(BuildContext context) {
     final isImport = type == 'import';
     final dotColor = isImport ? AppColors.green : AppColors.red;
-    final prefix = isImport ? 'NK' : 'XK';
-    final label = isImport ? 'Nhập' : 'Xuất';
-    final code = _transactionCodeFromId(docId, prefix);
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -110,7 +113,7 @@ class _ActivityTile extends StatelessWidget {
                 children: [
                   Text(productName, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14, color: AppColors.textPrimary)),
                   const SizedBox(height: 2),
-                  Text('$label $items — $code', style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                  Text(_subtitle(), style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
                 ],
               ),
             ),
@@ -120,6 +123,16 @@ class _ActivityTile extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  String _subtitle() {
+    final isImport = type == 'import';
+    final prefix = isImport ? 'NK' : 'XK';
+    final label = isImport ? 'Nhập' : 'Xuất';
+    final code = _transactionCodeFromId(docId, prefix);
+    final byLabel = createdBy.isNotEmpty ? ' — $createdBy' : '';
+    final deliverLabel = deliveredBy.isNotEmpty ? ' — Giao: $deliveredBy' : '';
+    return '$label $items — $code$byLabel$deliverLabel';
   }
 }
 

@@ -199,6 +199,8 @@ class DashboardScreen extends ConsumerWidget {
                     final timeStr = ts != null
                         ? '${ts.toDate().hour.toString().padLeft(2, '0')}:${ts.toDate().minute.toString().padLeft(2, '0')}'
                         : '';
+                    final createdBy = data['createdBy'] as String? ?? '';
+                    final deliveredBy = data['deliveredBy'] as String? ?? '';
                     return _ActivityTile(item: _ActivityItem(
                       type: isImport ? 'import' : 'export',
                       productName: productName,
@@ -207,6 +209,8 @@ class DashboardScreen extends ConsumerWidget {
                       zone: data['zone'] as String? ?? 'D',
                       docId: doc.id,
                       rawData: data,
+                      createdBy: createdBy,
+                      deliveredBy: deliveredBy,
                     ));
                   },
                 ),
@@ -385,6 +389,8 @@ class _ActivityItem {
   final String zone;
   final String docId;
   final Map<String, dynamic> rawData;
+  final String createdBy;
+  final String deliveredBy;
   const _ActivityItem({
     required this.type,
     required this.productName,
@@ -393,6 +399,8 @@ class _ActivityItem {
     required this.zone,
     required this.docId,
     required this.rawData,
+    this.createdBy = '',
+    this.deliveredBy = '',
   });
 }
 
@@ -404,7 +412,6 @@ class _ActivityTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final isImport = item.type == 'import';
     final dotColor = isImport ? AppColors.green : AppColors.red;
-    final prefix = isImport ? 'NK' : 'XK';
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: InkWell(
@@ -426,7 +433,7 @@ class _ActivityTile extends StatelessWidget {
                   children: [
                     Text(item.productName, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14, color: AppColors.textPrimary)),
                     const SizedBox(height: 2),
-                    Text('Khu ${item.zone} — ${item.rawData['items'] ?? 0} sp — $prefix-${item.docId.length >= 4 ? item.docId.substring(0, 4).toUpperCase() : '0000'}', style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                    Text(_activitySubtitle(item), style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
                   ],
                 ),
               ),
@@ -437,6 +444,17 @@ class _ActivityTile extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  String _activitySubtitle(_ActivityItem item) {
+    final isImport = item.type == 'import';
+    final prefix = isImport ? 'NK' : 'XK';
+    final zoneLabel = 'Khu ${item.zone}';
+    final itemsLabel = '${item.rawData['items'] ?? 0} sp';
+    final codeLabel = '$prefix-${item.docId.length >= 4 ? item.docId.substring(0, 4).toUpperCase() : '0000'}';
+    final byLabel = item.createdBy.isNotEmpty ? ' — ${item.createdBy}' : '';
+    final deliverLabel = item.deliveredBy.isNotEmpty ? ' — Giao: ${item.deliveredBy}' : '';
+    return '$zoneLabel — $itemsLabel — $codeLabel$byLabel$deliverLabel';
   }
 
   void _showDetail(BuildContext context, _ActivityItem item) {
@@ -497,6 +515,8 @@ class _ActivityTile extends StatelessWidget {
                 _detailRow('Ghi chú', (data['note'] as String?)?.isNotEmpty == true ? data['note'] : 'Không có'),
                 _detailRow('Trạng thái', _mapStatus((data['status'] as String?))),
                 if (timeStr.isNotEmpty) _detailRow('Thời gian', timeStr),
+                if (item.createdBy.isNotEmpty) _detailRow('Người tạo', item.createdBy),
+                if (item.deliveredBy.isNotEmpty) _detailRow('Người giao', item.deliveredBy),
                 if (products.isNotEmpty) ...[
                   const SizedBox(height: 12),
                   const Text('Sản phẩm', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
