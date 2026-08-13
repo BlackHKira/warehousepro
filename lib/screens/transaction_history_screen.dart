@@ -396,13 +396,14 @@ List<_TxGroup> _groupByDay(List<Map<String, dynamic>> entries) {
   for (final e in entries) {
     final createdAt = DateTime.tryParse(e['createdAt'] as String? ?? '');
     if (createdAt == null) continue;
-    final key = '${createdAt.year}-${createdAt.month}-${createdAt.day}';
+    final key = '${createdAt.year}-${createdAt.month.toString().padLeft(2, '0')}-${createdAt.day.toString().padLeft(2, '0')}';
     map.putIfAbsent(key, () => []).add(e);
   }
   final keys = map.keys.toList()..sort((a, b) => b.compareTo(a));
   return keys.map((k) {
-    final first = DateTime.tryParse(map[k]!.first['createdAt'] as String? ?? '')!;
-    return _TxGroup(first, map[k]!);
+    final dayEntries = map[k]!..sort((a, b) => (b['createdAt'] as String? ?? '').compareTo(a['createdAt'] as String? ?? ''));
+    final first = DateTime.tryParse(dayEntries.first['createdAt'] as String? ?? '')!;
+    return _TxGroup(first, dayEntries);
   }).toList();
 }
 
