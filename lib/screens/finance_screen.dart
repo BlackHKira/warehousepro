@@ -41,6 +41,8 @@ class _FinanceBodyState extends ConsumerState<_FinanceBody> {
   int _exportCount = 0;
   List<Map<String, dynamic>> _todayImportTxns = [];
   List<Map<String, dynamic>> _todayExportTxns = [];
+  List<Map<String, dynamic>> _monthImportTxns = [];
+  List<Map<String, dynamic>> _monthExportTxns = [];
 
   @override
   void initState() {
@@ -57,11 +59,19 @@ class _FinanceBodyState extends ConsumerState<_FinanceBody> {
       final now = DateTime.now();
       final startOfDay = DateTime(now.year, now.month, now.day);
       final endOfDay = startOfDay.add(const Duration(days: 1));
+      final startOfMonth = DateTime(now.year, now.month, 1);
+      final endOfMonth = DateTime(now.year, now.month + 1, 1);
 
-      final snapshot = await db
+      final todaySnap = await db
           .collection('stock_transactions')
           .where('createdAt', isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay))
           .where('createdAt', isLessThan: Timestamp.fromDate(endOfDay))
+          .get();
+
+      final monthSnap = await db
+          .collection('stock_transactions')
+          .where('createdAt', isGreaterThanOrEqualTo: Timestamp.fromDate(startOfMonth))
+          .where('createdAt', isLessThan: Timestamp.fromDate(endOfMonth))
           .get();
 
       double cost = 0;
@@ -71,7 +81,7 @@ class _FinanceBodyState extends ConsumerState<_FinanceBody> {
       final importTxns = <Map<String, dynamic>>[];
       final exportTxns = <Map<String, dynamic>>[];
 
-      for (final doc in snapshot.docs) {
+      for (final doc in todaySnap.docs) {
         final data = doc.data();
         data['id'] = doc.id;
         final type = data['type'] as String?;
@@ -108,6 +118,49 @@ class _FinanceBodyState extends ConsumerState<_FinanceBody> {
         }
       }
 
+      final monthImportTxns = <Map<String, dynamic>>[];
+      final monthExportTxns = <Map<String, dynamic>>[];
+
+      for (final doc in monthSnap.docs) {
+        final data = doc.data();
+        data['id'] = doc.id;
+        final type = data['type'] as String?;
+        final products = data['products'] as List<dynamic>? ?? [];
+
+        double txnTotal = 0;
+        for (final item in products) {
+          if (item is Map<String, dynamic>) {
+            final barcode = item['barcode'] as String? ?? '';
+            final quantity = (item['quantity'] as num?)?.toInt() ?? 0;
+            final product = widget.products.where((p) => p.barcode == barcode).firstOrNull;
+            if (product != null) {
+              txnTotal += quantity * (type == 'import' ? product.unitPrice : product.exportPrice);
+            }
+          }
+        }
+        data['_txnTotal'] = txnTotal.toInt();
+        if (type == 'import') {
+          monthImportTxns.add(data);
+        } else if (type == 'export') {
+          monthExportTxns.add(data);
+        }
+      }
+
+      monthImportTxns.sort((a, b) {
+        final aTime = a['createdAt'];
+        final bTime = b['createdAt'];
+        if (aTime is Timestamp && bTime is Timestamp) return bTime.compareTo(aTime);
+        if (aTime is String && bTime is String) return bTime.compareTo(aTime);
+        return 0;
+      });
+      monthExportTxns.sort((a, b) {
+        final aTime = a['createdAt'];
+        final bTime = b['createdAt'];
+        if (aTime is Timestamp && bTime is Timestamp) return bTime.compareTo(aTime);
+        if (aTime is String && bTime is String) return bTime.compareTo(aTime);
+        return 0;
+      });
+
       if (mounted) {
         setState(() {
           _totalCostToday = cost;
@@ -116,6 +169,8 @@ class _FinanceBodyState extends ConsumerState<_FinanceBody> {
           _exportCount = exports;
           _todayImportTxns = importTxns;
           _todayExportTxns = exportTxns;
+          _monthImportTxns = monthImportTxns;
+          _monthExportTxns = monthExportTxns;
           _loadingTxns = false;
         });
       }
@@ -301,7 +356,11 @@ class _FinanceBodyState extends ConsumerState<_FinanceBody> {
         const SizedBox(height: 20),
 
         // --- Ngân sách tháng ---
-        _BudgetSection(ref: ref),
+        _BudgetSection(
+          ref: ref,
+          onImportTap: _monthImportTxns.isNotEmpty ? () => _showTxnSheet(context, 'Phiếu nhập tháng này', _monthImportTxns, true) : null,
+          onExportTap: _monthExportTxns.isNotEmpty ? () => _showTxnSheet(context, 'Phiếu xuất tháng này', _monthExportTxns, false) : null,
+        ),
         const SizedBox(height: 20),
 
         // Detail table
@@ -390,7 +449,9 @@ class _FinanceBodyState extends ConsumerState<_FinanceBody> {
 
 class _BudgetSection extends StatelessWidget {
   final WidgetRef ref;
-  const _BudgetSection({required this.ref});
+  final VoidCallback? onImportTap;
+  final VoidCallback? onExportTap;
+  const _BudgetSection({required this.ref, this.onImportTap, this.onExportTap});
 
   @override
   Widget build(BuildContext context) {
@@ -470,7 +531,7 @@ class _BudgetSection extends StatelessWidget {
                             Expanded(
                               child: _BudgetMiniTile(
                                 icon: Icons.account_balance_wallet_outlined,
-                                label: 'Tiền chủ kho',
+                                label: 'Số tiền được cấp tháng này',
                                 value: _formatCurrency(initialDeposit),
                                 color: AppColors.primary,
                                 onTap: () => _showEditWalletSheet(context, initialDeposit, note),
@@ -483,6 +544,7 @@ class _BudgetSection extends StatelessWidget {
                                 label: 'Đã chi tháng này',
                                 value: _formatCurrency(importCost),
                                 color: AppColors.error,
+                                onTap: onImportTap,
                               ),
                             ),
                             const SizedBox(width: 8),
@@ -492,6 +554,7 @@ class _BudgetSection extends StatelessWidget {
                                 label: 'Đã thu tháng này',
                                 value: _formatCurrency(exportRevenue),
                                 color: AppColors.successDark,
+                                onTap: onExportTap,
                               ),
                             ),
                           ],
