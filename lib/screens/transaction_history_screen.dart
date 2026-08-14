@@ -196,9 +196,9 @@ class _TransactionHistoryScreenState
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: _MiniStat(
+                child:               _MiniStat(
                   label: 'Chênh lệch',
-                  value: '${totalImport - totalExport}',
+                  value: '${(totalImport - totalExport).abs()}',
                   color: AppColors.primary,
                 ),
               ),
@@ -310,7 +310,7 @@ class _TransactionHistoryScreenState
             children: [
               _WebStatBox(label: 'Tổng nhập', value: '$totalImport', color: AppColors.green),
               _WebStatBox(label: 'Tổng xuất', value: '$totalExport', color: AppColors.red),
-              _WebStatBox(label: 'Chênh lệch', value: '${totalImport - totalExport}', color: AppColors.primary),
+              _WebStatBox(label: 'Chênh lệch', value: '${(totalImport - totalExport).abs()}', color: AppColors.primary),
             ],
           ),
           const SizedBox(height: 14),
