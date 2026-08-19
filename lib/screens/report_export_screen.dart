@@ -41,6 +41,7 @@ class ReportExportScreen extends ConsumerWidget {
                         _WebStat(icon: Icons.inventory_2, label: 'Tổng tồn', value: '$totalStock', color: AppColors.primary),
                         _WebStat(icon: Icons.category, label: 'Sản phẩm', value: '${products.length}', color: AppColors.green),
                         _WebStat(icon: Icons.warning_amber, label: 'Sắp hết', value: '$lowStock', color: AppColors.orange),
+                        _WebStat(icon: Icons.download, label: 'Nhập hôm nay', value: '${warehouse.todayImports}', color: AppColors.green),
                         _WebStat(icon: Icons.swap_horiz, label: 'Xuất hôm nay', value: '${warehouse.todayExports}', color: AppColors.red),
                       ],
                     ),
@@ -84,11 +85,13 @@ class ReportExportScreen extends ConsumerWidget {
             const SizedBox(height: 10),
             Row(
               children: [
-                Expanded(child: _ReportStat(icon: Icons.warning_amber, label: 'Sắp hết', value: '$lowStock', color: AppColors.orange)),
+                Expanded(child: _ReportStat(icon: Icons.download, label: 'Nhập hôm nay', value: '${warehouse.todayImports}', color: AppColors.green)),
                 const SizedBox(width: 10),
                 Expanded(child: _ReportStat(icon: Icons.swap_horiz, label: 'Xuất hôm nay', value: '${warehouse.todayExports}', color: AppColors.red)),
               ],
             ),
+            const SizedBox(height: 10),
+            _ReportStat(icon: Icons.warning_amber, label: 'Sắp hết', value: '$lowStock', color: AppColors.orange),
             const SizedBox(height: 20),
             Card(
               child: Padding(
