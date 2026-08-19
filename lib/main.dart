@@ -20,14 +20,18 @@ void main() async {
     databaseId: 'warehousepro-db',
   );
 
-  final zonesSnap = await db.collection('zones').limit(1).get();
-  if (zonesSnap.docs.isEmpty) {
-    await ZoneService().seedDefaultZones();
-  }
+  try {
+    final zonesSnap = await db.collection('zones').limit(1).get();
+    if (zonesSnap.docs.isEmpty) {
+      await ZoneService().seedDefaultZones();
+    }
 
-  final productsSnap = await db.collection('products').limit(1).get();
-  if (productsSnap.docs.isEmpty) {
-    await SeedFirestore().seedProducts();
+    final productsSnap = await db.collection('products').limit(1).get();
+    if (productsSnap.docs.isEmpty) {
+      await SeedFirestore().seedProducts();
+    }
+  } catch (e) {
+    debugPrint('Seeding failed: $e');
   }
 
   runApp(const ProviderScope(child: WarehouseProApp()));

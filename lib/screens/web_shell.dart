@@ -216,11 +216,7 @@ class _WebShellState extends ConsumerState<WebShell> {
         ),
       );
     }
-    return _tileRow(
-      icon: const Icon(Icons.cloud_done_outlined, size: 18),
-      text: 'Đã đồng bộ',
-      color: AppColors.green,
-    );
+    return const SizedBox.shrink();
   }
 
   Widget _tileRow({

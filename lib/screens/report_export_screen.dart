@@ -129,14 +129,29 @@ class ReportExportScreen extends ConsumerWidget {
             const SizedBox(height: 20),
             Text('Sản phẩm tồn thấp', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
             const SizedBox(height: 8),
-            ...products.where((p) => p.isLowStock).take(5).map((p) => Card(
-              child: ListTile(
-                leading: CircleAvatar(backgroundColor: AppColors.orange.withValues(alpha: 0.1), child: const Icon(Icons.warning_amber, color: AppColors.orange, size: 18)),
-                title: Text(p.name, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14)),
-                subtitle: Text('${p.zone} · ${p.location}', style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-                trailing: Text(formatStockDetail(p.stock, p.unitPerCase), style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.red, fontSize: 12)),
-              ),
-            )),
+            ...products.where((p) => p.isLowStock).take(5).toList().isEmpty
+                ? [Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 24),
+                    child: Column(
+                      children: [
+                        const Icon(Icons.thumb_up_alt_outlined, color: AppColors.green, size: 36),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Không có sản phẩm nào sắp hết!',
+                          style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  )]
+                : products.where((p) => p.isLowStock).take(5).map((p) => Card(
+                  child: ListTile(
+                    leading: CircleAvatar(backgroundColor: AppColors.orange.withValues(alpha: 0.1), child: const Icon(Icons.warning_amber, color: AppColors.orange, size: 18)),
+                    title: Text(p.name, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14)),
+                    subtitle: Text('${p.zone} · ${p.location}', style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                    trailing: Text(formatStockDetail(p.stock, p.unitPerCase), style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.red, fontSize: 12)),
+                  ),
+                )).toList(),
           ],
         );
   }

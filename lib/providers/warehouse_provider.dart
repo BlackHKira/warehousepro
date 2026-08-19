@@ -431,6 +431,7 @@ class WarehouseNotifier extends StateNotifier<WarehouseState> {
           'products': entry['products'] ?? [],
           'note': entry['note'] ?? '',
           'createdBy': entry['createdBy'] ?? '',
+          'deliveredBy': entry['deliveredBy'] ?? '',
           'status': entry['status'],
           'createdAt': FieldValue.serverTimestamp(),
         });
