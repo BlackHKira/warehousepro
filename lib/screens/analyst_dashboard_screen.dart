@@ -109,6 +109,8 @@ class AnalystDashboardScreen extends ConsumerWidget {
                   children: [
                     Expanded(child: _DashStat(icon: Icons.warning_amber, label: 'Sắp hết', value: '$lowStock', color: AppColors.orange)),
                     const SizedBox(width: 10),
+                    Expanded(child: _DashStat(icon: Icons.download_outlined, label: 'Nhập hôm nay', value: '${warehouse.todayImports}', color: AppColors.green)),
+                    const SizedBox(width: 10),
                     Expanded(child: _DashStat(icon: Icons.upload_outlined, label: 'Xuất hôm nay', value: '${warehouse.todayExports}', color: AppColors.red)),
                   ],
                 ),
