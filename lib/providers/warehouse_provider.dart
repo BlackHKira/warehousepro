@@ -28,8 +28,8 @@ class WarehouseState {
   });
 
   int get pendingSync =>
-      recentImports.where((e) => e['syncStatus'] == 'pending').length +
-      recentExports.where((e) => e['syncStatus'] == 'pending').length;
+      recentImports.where((e) => e['syncStatus'] == 'pending' || e['syncStatus'] == 'local_only').length +
+      recentExports.where((e) => e['syncStatus'] == 'pending' || e['syncStatus'] == 'local_only').length;
 
   WarehouseState copyWith({
     int? totalProducts,
@@ -419,8 +419,7 @@ class WarehouseNotifier extends StateNotifier<WarehouseState> {
     }
 
     try {
-      final allPending = await _db.getPendingTransactions();
-      final pending = allPending.where((e) => e['syncStatus'] != 'local_only').toList();
+      final pending = await _db.getPendingTransactions();
       for (final entry in pending) {
         final docRef = await _firestore.transactions.add({
           'type': entry['type'],
@@ -469,6 +468,10 @@ class WarehouseNotifier extends StateNotifier<WarehouseState> {
 
   Future<void> refreshFromFirestore() async {
     await _pullFromFirestore();
+  }
+
+  Future<List<Map<String, dynamic>>> getPendingList() async {
+    return await _db.getPendingTransactions();
   }
 
   Future<void> cleanupOldPendingExports() async {

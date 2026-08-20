@@ -175,10 +175,11 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       return true;
     }).toList();
 
-    final body = Column(
+    final body = ClipRect(
+      child: Column(
       children: [
         Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(12),
           child: Row(
             children: [
               Expanded(
@@ -203,47 +204,52 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           ),
         ),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Row(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               ChoiceChip(
-                label: Text('Text', style: TextStyle(fontSize: 13, color: !_showBarcodeSearch ? Colors.white : AppColors.textPrimary)),
+                label: Text('Text', style: TextStyle(fontSize: 12, color: !_showBarcodeSearch ? Colors.white : AppColors.textPrimary)),
                 selected: !_showBarcodeSearch,
                 onSelected: (_) => setState(() => _showBarcodeSearch = false),
                 selectedColor: AppColors.primary,
                 backgroundColor: const Color(0xFFE8ECF4),
+                visualDensity: VisualDensity.compact,
               ),
               ChoiceChip(
-                label: Text('Barcode', style: TextStyle(fontSize: 13, color: _showBarcodeSearch ? Colors.white : AppColors.textPrimary)),
+                label: Text('Barcode', style: TextStyle(fontSize: 12, color: _showBarcodeSearch ? Colors.white : AppColors.textPrimary)),
                 selected: _showBarcodeSearch,
                 onSelected: (_) => setState(() => _showBarcodeSearch = true),
                 selectedColor: AppColors.primary,
                 backgroundColor: const Color(0xFFE8ECF4),
+                visualDensity: VisualDensity.compact,
               ),
-              const Spacer(),
               Text('${filtered.length} kết quả', style: const TextStyle(fontSize: 12, color: AppColors.textMuted)),
-              const Spacer(),
               ActionChip(
-                avatar: Icon(Icons.location_on, size: 18, color: _selectedZone.isNotEmpty ? Colors.white : AppColors.primary),
+                avatar: Icon(Icons.location_on, size: 16, color: _selectedZone.isNotEmpty ? Colors.white : AppColors.primary),
                 label: Text(
                   _selectedZone.isNotEmpty ? 'Khu: $_selectedZone' : 'Khu vực',
-                  style: TextStyle(fontSize: 13, color: _selectedZone.isNotEmpty ? Colors.white : AppColors.textPrimary),
+                  style: TextStyle(fontSize: 12, color: _selectedZone.isNotEmpty ? Colors.white : AppColors.textPrimary),
                 ),
                 onPressed: () => _showFilterSheet(context, 'Khu vực', zones, _selectedZone, (v) => setState(() => _selectedZone = v)),
                 backgroundColor: _selectedZone.isNotEmpty ? AppColors.primary : const Color(0xFFE8ECF4),
                 side: BorderSide.none,
                 padding: const EdgeInsets.symmetric(horizontal: 4),
+                visualDensity: VisualDensity.compact,
               ),
               ActionChip(
-                avatar: Icon(Icons.category_outlined, size: 18, color: _selectedCategory.isNotEmpty ? Colors.white : AppColors.primary),
+                avatar: Icon(Icons.category_outlined, size: 16, color: _selectedCategory.isNotEmpty ? Colors.white : AppColors.primary),
                 label: Text(
                   _selectedCategory.isNotEmpty ? 'Loại: $_selectedCategory' : 'Danh mục',
-                  style: TextStyle(fontSize: 13, color: _selectedCategory.isNotEmpty ? Colors.white : AppColors.textPrimary),
+                  style: TextStyle(fontSize: 12, color: _selectedCategory.isNotEmpty ? Colors.white : AppColors.textPrimary),
                 ),
                 onPressed: () => _showFilterSheet(context, 'Danh mục', categories, _selectedCategory, (v) => setState(() => _selectedCategory = v)),
                 backgroundColor: _selectedCategory.isNotEmpty ? AppColors.primary : const Color(0xFFE8ECF4),
                 side: BorderSide.none,
                 padding: const EdgeInsets.symmetric(horizontal: 4),
+                visualDensity: VisualDensity.compact,
               ),
             ],
           ),
@@ -270,7 +276,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                         borderRadius: BorderRadius.circular(10),
                         child: p.imageUrl.isNotEmpty
                             ? Image.network(p.imageUrl, width: 44, height: 44, fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => Container(
+                                errorBuilder: (_, _, _) => Container(
                                   width: 44, height: 44,
                                   color: AppColors.primary.withValues(alpha: 0.1),
                                   child: const Icon(Icons.inventory_2_outlined, color: AppColors.primary),
@@ -305,6 +311,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 ),
         ),
       ],
+      ),
     );
 
     if (widget.embedded) return body;

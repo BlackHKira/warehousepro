@@ -51,7 +51,7 @@ class ProductDetailScreen extends ConsumerWidget {
                     borderRadius: BorderRadius.circular(20),
                     child: product.imageUrl.isNotEmpty
                         ? Image.network(product.imageUrl, width: 72, height: 72, fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => Container(
+                            errorBuilder: (_, _, _) => Container(
                               width: 72, height: 72,
                               decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(20)),
                               child: const Icon(Icons.inventory_2, color: AppColors.primary, size: 40),
