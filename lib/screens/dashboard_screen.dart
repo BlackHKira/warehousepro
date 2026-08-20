@@ -13,6 +13,7 @@ import 'export_screen.dart';
 import 'search_screen.dart';
 import 'bulk_scan_screen.dart';
 import 'activity_history_screen.dart';
+import '../widgets/pending_sync_sheet.dart';
 
 class DashboardScreen extends ConsumerWidget {
   final bool embedded;
@@ -42,7 +43,7 @@ class DashboardScreen extends ConsumerWidget {
             GestureDetector(
               onTap: warehouse.isSyncing
                   ? null
-                  : () => ref.read(warehouseProvider.notifier).syncData(),
+                  : () => showPendingSyncSheet(context),
               child: Container(
                 width: double.infinity,
                 margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
@@ -59,7 +60,7 @@ class DashboardScreen extends ConsumerWidget {
                       child: Text(
                         warehouse.isSyncing
                             ? 'Đang đồng bộ...'
-                            : '${warehouse.pendingSync} bản ghi chờ đồng bộ — Nhấn để đồng bộ',
+                            : '${warehouse.pendingSync} bản ghi chờ đồng bộ — Nhấn để xem & đồng bộ',
                         style: const TextStyle(color: AppColors.warningDark, fontWeight: FontWeight.w500, fontSize: 13),
                       ),
                     ),
@@ -284,8 +285,8 @@ class _DashboardHeader extends ConsumerWidget {
           ),
           IconButton(
             icon: const Icon(Icons.refresh, color: Color(0xFF3B82F6)),
-            tooltip: 'Đồng bộ',
-            onPressed: () => ref.read(warehouseProvider.notifier).syncData(),
+            tooltip: 'Làm mới',
+            onPressed: () => ref.read(warehouseProvider.notifier).refreshFromFirestore(),
           ),
         ],
       ),

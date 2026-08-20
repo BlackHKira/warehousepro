@@ -35,7 +35,7 @@ class _WebDatabaseHelper extends DatabaseHelper {
   @override
   Future<List<Map<String, dynamic>>> getPendingTransactions() async {
     return _store
-        .where((e) => e['syncStatus'] == 'pending')
+        .where((e) => e['syncStatus'] == 'pending' || e['syncStatus'] == 'local_only')
         .map(_decodeRow)
         .toList();
   }

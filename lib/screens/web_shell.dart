@@ -5,6 +5,7 @@ import '../providers/user_profile_provider.dart';
 import '../services/auth_service.dart';
 import '../services/local_storage_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/pending_sync_sheet.dart';
 import 'login_screen.dart';
 
 class WebTab {
@@ -207,7 +208,7 @@ class _WebShellState extends ConsumerState<WebShell> {
     }
     if (warehouse.pendingSync > 0) {
       return InkWell(
-        onTap: () => ref.read(warehouseProvider.notifier).syncData(),
+        onTap: () => showPendingSyncSheet(context),
         borderRadius: BorderRadius.circular(9),
         child: _tileRow(
           icon: const Icon(Icons.sync_problem, size: 18),

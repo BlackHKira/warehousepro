@@ -10,6 +10,7 @@ import '../providers/warehouse_provider.dart';
 import '../services/auth_service.dart';
 import '../services/local_storage_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/pending_sync_sheet.dart';
 import 'dashboard_screen.dart';
 import 'import_screen.dart';
 import 'export_screen.dart';
@@ -144,7 +145,7 @@ class _MainShellState extends ConsumerState<MainShell> {
             )
           else if (warehouse.pendingSync > 0)
             GestureDetector(
-              onTap: () => ref.read(warehouseProvider.notifier).syncData(),
+              onTap: () => showPendingSyncSheet(context),
               child: Container(
                 margin: const EdgeInsets.only(right: 8),
                 padding: const EdgeInsets.symmetric(
@@ -177,33 +178,30 @@ class _MainShellState extends ConsumerState<MainShell> {
               ),
             )
           else
-            GestureDetector(
-              onTap: () => ref.read(warehouseProvider.notifier).syncData(),
-              child: Container(
-                margin: const EdgeInsets.only(right: 8),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: AppColors.green.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.sync, size: 16, color: AppColors.green),
-                    SizedBox(width: 4),
-                    Text(
-                      'Đã sync',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.green,
-                        fontSize: 13,
-                      ),
+            Container(
+              margin: const EdgeInsets.only(right: 8),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 10,
+                vertical: 6,
+              ),
+              decoration: BoxDecoration(
+                color: AppColors.green.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.sync, size: 16, color: AppColors.green),
+                  SizedBox(width: 4),
+                  Text(
+                    'Đã sync',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.green,
+                      fontSize: 13,
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           PopupMenuButton<String>(
