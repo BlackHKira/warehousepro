@@ -88,7 +88,8 @@ class _CreateExportTabState extends ConsumerState<_CreateExportTab> {
               final product = await ref.read(productByBarcodeProvider(barcode).future);
               if (!mounted) return;
               if (product != null) {
-                String pickedZone = zones.isNotEmpty ? zones.first.code : product.zone;
+                final filteredZones = zones.where((z) => z.description.contains(product.category)).toList();
+                String pickedZone = filteredZones.isNotEmpty ? filteredZones.first.code : product.zone;
                 await showDialog(
                   context: context,
                   builder: (ctx) => StatefulBuilder(
@@ -102,7 +103,7 @@ class _CreateExportTabState extends ConsumerState<_CreateExportTab> {
                           DropdownButtonFormField<String>(
                             initialValue: pickedZone,
                             decoration: const InputDecoration(labelText: 'Khu vực xuất', border: OutlineInputBorder()),
-                            items: zones.map((z) => DropdownMenuItem(value: z.code, child: Text('${z.code} — ${z.label}', style: const TextStyle(fontSize: 14)))).toList(),
+                            items: filteredZones.map((z) => DropdownMenuItem(value: z.code, child: Text('${z.code} — ${z.label}', style: const TextStyle(fontSize: 14)))).toList(),
                             onChanged: (v) => setDialogState(() => pickedZone = v ?? pickedZone),
                           ),
                         ],
