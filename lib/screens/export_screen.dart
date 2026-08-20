@@ -10,6 +10,7 @@ import '../models/product.dart';
 import '../providers/product_provider.dart';
 import '../services/zone_service.dart' show ZoneService;
 import '../theme/app_theme.dart';
+import '../widgets/barcode_scanner_screen.dart';
 
 class ExportScreen extends ConsumerStatefulWidget {
   final bool embedded;
@@ -64,30 +65,76 @@ class _CreateExportTabState extends ConsumerState<_CreateExportTab> {
         title: const Text('Quét mã vạch'),
         content: Container(
           height: 200,
-          decoration: BoxDecoration(
-            color: Colors.black,
-            borderRadius: BorderRadius.circular(12),
-          ),
+          decoration: BoxDecoration(color: Colors.black, borderRadius: BorderRadius.circular(12)),
           child: const Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(Icons.qr_code_scanner, color: Colors.white, size: 64),
                 SizedBox(height: 12),
-                Text(
-                  'Đưa mã vạch vào khung hình',
-                  style: TextStyle(color: Colors.white70),
-                ),
+                Text('Đưa mã vạch vào khung hình', style: TextStyle(color: Colors.white70)),
               ],
             ),
           ),
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Huỷ'),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Huỷ')),
+          FilledButton.icon(
+            icon: const Icon(Icons.qr_code_scanner, size: 18),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              final barcode = await Navigator.push<String>(context, MaterialPageRoute(builder: (_) => const BarcodeScannerScreen()));
+              if (barcode == null || !mounted) return;
+              final product = await ref.read(productByBarcodeProvider(barcode).future);
+              if (!mounted) return;
+              if (product != null) {
+                String pickedZone = zones.isNotEmpty ? zones.first.code : product.zone;
+                await showDialog(
+                  context: context,
+                  builder: (ctx) => StatefulBuilder(
+                    builder: (ctx, setDialogState) => AlertDialog(
+                      title: const Text('Chọn khu vực'),
+                      content: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(product.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+                          const SizedBox(height: 12),
+                          DropdownButtonFormField<String>(
+                            initialValue: pickedZone,
+                            decoration: const InputDecoration(labelText: 'Khu vực xuất', border: OutlineInputBorder()),
+                            items: zones.map((z) => DropdownMenuItem(value: z.code, child: Text('${z.code} — ${z.label}', style: const TextStyle(fontSize: 14)))).toList(),
+                            onChanged: (v) => setDialogState(() => pickedZone = v ?? pickedZone),
+                          ),
+                        ],
+                      ),
+                      actions: [
+                        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Huỷ')),
+                        FilledButton(
+                          onPressed: () {
+                            _addItem(product.name, product.barcode, 1, pickedZone, product.unitPerCase);
+                            Navigator.pop(ctx);
+                          },
+                          child: const Text('Thêm'),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Đã quét: ${product.name}'), behavior: SnackBarBehavior.floating, duration: const Duration(seconds: 1)),
+                );
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Không tìm thấy sản phẩm với mã: $barcode'), behavior: SnackBarBehavior.floating, backgroundColor: AppColors.red),
+                );
+              }
+            },
+            label: const Text('Quét camera'),
           ),
-          FilledButton(
+          const SizedBox(height: 8),
+          TextButton.icon(
+            icon: const Icon(Icons.shuffle, size: 18),
             onPressed: () {
               Navigator.pop(ctx);
               final rng = Random();
@@ -97,16 +144,10 @@ class _CreateExportTabState extends ConsumerState<_CreateExportTab> {
               final qty = 1 + rng.nextInt(10);
               _addItem(product.name, product.barcode, qty, product.zone, product.unitPerCase);
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    'Đã quét: ${product.name} — $qty thùng',
-                  ),
-                  behavior: SnackBarBehavior.floating,
-                  duration: const Duration(seconds: 1),
-                ),
+                SnackBar(content: Text('Đã quét: ${product.name} — $qty thùng'), behavior: SnackBarBehavior.floating, duration: const Duration(seconds: 1)),
               );
             },
-            child: const Text('Giả lập quét'),
+            label: const Text('Giả lập quét'),
           ),
         ],
       ),
